@@ -1,5 +1,5 @@
 
-import { ScanResults, Vulnerability } from '../scanEngine';
+import { ScanResults as ScanResultsType, Vulnerability as VulnerabilityType } from '../scanEngine';
 
 // Define type augmentation for jsPDF with AutoTable
 declare global {
@@ -22,4 +22,6 @@ export interface SeverityBadge {
   color: string;
 }
 
-export { ScanResults, Vulnerability };
+// Re-export types using 'export type' to fix the 'isolatedModules' error
+export type ScanResults = ScanResultsType;
+export type Vulnerability = VulnerabilityType;
