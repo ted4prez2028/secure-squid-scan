@@ -133,8 +133,8 @@
 }
 
 .report-template.selected {
-  border-color: theme('colors.scanner-primary');
-  box-shadow: 0 0 0 2px theme('colors.scanner-primary');
+  border-color: theme('colors.scanner.primary');
+  box-shadow: 0 0 0 2px theme('colors.scanner.primary');
 }
 
 /* Network graph animation */
@@ -143,7 +143,7 @@
 }
 
 .network-node:hover {
-  fill: theme('colors.scanner-primary');
+  fill: theme('colors.scanner.primary');
 }
 
 .network-line {

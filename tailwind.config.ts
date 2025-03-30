@@ -72,8 +72,14 @@ export default {
 				},
 				codeblock: '#1E1E3F',
 				scanner: {
-					primary: '#9b87f5',
-					secondary: '#7E69AB',
+					primary: 'hsl(var(--scanner-primary))',
+					secondary: 'hsl(var(--scanner-secondary))',
+					critical: 'hsl(var(--scanner-critical))',
+					high: 'hsl(var(--scanner-high))',
+					medium: 'hsl(var(--scanner-medium))',
+					low: 'hsl(var(--scanner-low))',
+					info: 'hsl(var(--scanner-info))',
+					'bg-highlight': 'hsl(var(--scanner-bg-highlight))',
 					dark: '#1A1F2C',
 				}
 			},

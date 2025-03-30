@@ -25,27 +25,27 @@ export const SeverityBadge: React.FC<SeverityBadgeProps> = ({
 }) => {
   const severityConfig: Record<SeverityLevel, { color: string, icon: React.ReactNode, label: string }> = {
     critical: { 
-      color: "bg-red-500/20 text-red-500 border-red-500/50 hover:bg-red-500/30", 
+      color: "bg-scanner-critical/20 text-scanner-critical border-scanner-critical/50 hover:bg-scanner-critical/30", 
       icon: <AlertTriangle className={size === 'sm' ? "h-3 w-3" : "h-4 w-4"} />,
       label: "Critical"
     },
     high: { 
-      color: "bg-orange-500/20 text-orange-500 border-orange-500/50 hover:bg-orange-500/30", 
+      color: "bg-scanner-high/20 text-scanner-high border-scanner-high/50 hover:bg-scanner-high/30", 
       icon: <AlertTriangle className={size === 'sm' ? "h-3 w-3" : "h-4 w-4"} />,
       label: "High"
     },
     medium: { 
-      color: "bg-amber-500/20 text-amber-500 border-amber-500/50 hover:bg-amber-500/30", 
+      color: "bg-scanner-medium/20 text-scanner-medium border-scanner-medium/50 hover:bg-scanner-medium/30", 
       icon: <AlertCircle className={size === 'sm' ? "h-3 w-3" : "h-4 w-4"} />,
       label: "Medium"
     },
     low: { 
-      color: "bg-green-500/20 text-green-500 border-green-500/50 hover:bg-green-500/30", 
+      color: "bg-scanner-low/20 text-scanner-low border-scanner-low/50 hover:bg-scanner-low/30", 
       icon: <Check className={size === 'sm' ? "h-3 w-3" : "h-4 w-4"} />,
       label: "Low"
     },
     info: { 
-      color: "bg-blue-500/20 text-blue-500 border-blue-500/50 hover:bg-blue-500/30", 
+      color: "bg-scanner-info/20 text-scanner-info border-scanner-info/50 hover:bg-scanner-info/30", 
       icon: <Info className={size === 'sm' ? "h-3 w-3" : "h-4 w-4"} />,
       label: "Info"
     }
