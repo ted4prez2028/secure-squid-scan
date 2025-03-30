@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import * as LabelPrimitive from "@radix-ui/react-label"
 import { Slot } from "@radix-ui/react-slot"
@@ -44,12 +45,12 @@ const useFormField = () => {
   const itemContext = React.useContext(FormItemContext)
   const { getFieldState, formState } = useFormContext()
 
-  const fieldState = getFieldState(fieldContext.name, formState)
-
   if (!fieldContext) {
     throw new Error("useFormField should be used within <FormField>")
   }
 
+  const fieldState = getFieldState(fieldContext.name, formState)
+  
   const { id } = itemContext
 
   return {
@@ -107,6 +108,17 @@ const FormControl = React.forwardRef<
 >(({ ...props }, ref) => {
   const { error, formItemId, formDescriptionId, formMessageId } = useFormField()
 
+  // Make sure we're passing a defined value to eliminate uncontrolled->controlled warnings
+  const enhancedProps = { ...props };
+  if (enhancedProps.children && 
+      React.isValidElement(enhancedProps.children) && 
+      enhancedProps.children.props.value === undefined) {
+    enhancedProps.children = React.cloneElement(
+      enhancedProps.children, 
+      { value: "" }
+    );
+  }
+
   return (
     <Slot
       ref={ref}
@@ -117,7 +129,7 @@ const FormControl = React.forwardRef<
           : `${formDescriptionId} ${formMessageId}`
       }
       aria-invalid={!!error}
-      {...props}
+      {...enhancedProps}
     />
   )
 })

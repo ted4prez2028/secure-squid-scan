@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -63,7 +64,18 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
       
       switch (reportFormat.toLowerCase()) {
         case 'pdf':
-          reportData = generatePdfReport(scanResults);
+          try {
+            reportData = generatePdfReport(scanResults);
+          } catch (error) {
+            console.error("Error generating PDF report:", error);
+            toast({
+              title: "PDF Generation Failed",
+              description: "Falling back to HTML format. Please try a different format or check console for details.",
+              variant: "destructive",
+            });
+            reportData = generateHtmlReport(scanResults);
+            setReportFormat('html');
+          }
           break;
         case 'html':
           reportData = generateHtmlReport(scanResults);
@@ -72,7 +84,7 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
           reportData = generateCsvReport(scanResults);
           break;
         default:
-          reportData = generatePdfReport(scanResults);
+          reportData = generateHtmlReport(scanResults);
       }
       
       const newReport = {
@@ -98,7 +110,7 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
       
       toast({
         title: "Error",
-        description: "Failed to generate report. Please try again.",
+        description: "Failed to generate report. Please try again with a different format.",
         variant: "destructive",
       });
     }
@@ -111,8 +123,19 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
         
         switch (report.format.toLowerCase()) {
           case 'pdf':
-            reportData = generatePdfReport(scanResults);
-            reportData.save(`${report.name.replace(/\s+/g, '_')}.pdf`);
+            try {
+              reportData = generatePdfReport(scanResults);
+              reportData.save(`${report.name.replace(/\s+/g, '_')}.pdf`);
+            } catch (error) {
+              console.error("Error downloading PDF report:", error);
+              toast({
+                title: "PDF Download Failed",
+                description: "Falling back to HTML format. Please try a different format.",
+                variant: "destructive",
+              });
+              reportData = generateHtmlReport(scanResults);
+              downloadBlob(reportData, `${report.name.replace(/\s+/g, '_')}.html`, 'text/html');
+            }
             break;
           case 'html':
             reportData = generateHtmlReport(scanResults);
@@ -125,25 +148,40 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
             break;
         }
       } else {
-        if (report.format.toLowerCase() === 'pdf' && typeof report.data.save === 'function') {
-          report.data.save(`${report.name.replace(/\s+/g, '_')}.pdf`);
-        } else {
-          const mimeType = report.format.toLowerCase() === 'html' ? 'text/html' : 'text/csv';
-          const extension = report.format.toLowerCase() === 'html' ? 'html' : 'csv';
-          downloadBlob(report.data, `${report.name.replace(/\s+/g, '_')}.${extension}`, mimeType);
+        try {
+          if (report.format.toLowerCase() === 'pdf' && typeof report.data.save === 'function') {
+            report.data.save(`${report.name.replace(/\s+/g, '_')}.pdf`);
+          } else {
+            const mimeType = report.format.toLowerCase() === 'html' ? 'text/html' : 'text/csv';
+            const extension = report.format.toLowerCase() === 'html' ? 'html' : 'csv';
+            downloadBlob(report.data, `${report.name.replace(/\s+/g, '_')}.${extension}`, mimeType);
+          }
+        } catch (error) {
+          console.error("Error in report download:", error);
+          toast({
+            title: "Download Issue",
+            description: "There was a problem with the download. Trying alternative format.",
+            variant: "destructive",
+          });
+          
+          // Fall back to HTML if PDF fails
+          if (report.format.toLowerCase() === 'pdf') {
+            const htmlReport = generateHtmlReport(scanResults);
+            downloadBlob(htmlReport, `${report.name.replace(/\s+/g, '_')}.html`, 'text/html');
+          }
         }
       }
       
       toast({
         title: "Download Started",
-        description: `Your ${report.format} report download has started.`,
+        description: `Your report download has started.`,
       });
     } catch (error) {
       console.error("Error downloading report:", error);
       
       toast({
         title: "Download Failed",
-        description: "Failed to download the report. Please try again.",
+        description: "Failed to download the report. Please try again with a different format.",
         variant: "destructive",
       });
       

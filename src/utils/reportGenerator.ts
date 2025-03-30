@@ -62,7 +62,23 @@ function formatDuration(milliseconds: number): string {
 
 // Generate a PDF report from scan results
 export function generatePdfReport(scanResults: ScanResults): jsPDF {
+  // Create a new jsPDF instance
   const doc = new jsPDF();
+  
+  // Check if autoTable is available, if not, handle gracefully
+  if (typeof doc.autoTable !== 'function') {
+    console.error('autoTable function is not available on jsPDF instance. Make sure jspdf-autotable is properly imported.');
+    
+    // Add a message to the PDF indicating the error
+    doc.setFontSize(16);
+    doc.setTextColor(255, 0, 0);
+    doc.text('Error: PDF report generation failed - autoTable not available', 20, 20);
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.text('Please check that jspdf-autotable is properly imported in your application.', 20, 30);
+    
+    return doc;
+  }
   
   // Add title
   doc.setFontSize(22);
@@ -97,6 +113,7 @@ export function generatePdfReport(scanResults: ScanResults): jsPDF {
     ['Requests Sent', scanResults.summary.requestsSent?.toString() || 'N/A'],
   ];
   
+  // Use autoTable for summary data
   doc.autoTable({
     startY: 46,
     head: [['Property', 'Value']],
