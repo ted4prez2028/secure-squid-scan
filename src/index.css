@@ -43,6 +43,17 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Scanner specific colors */
+    --scanner-primary: 265 80% 75%;
+    --scanner-secondary: 240 6% 26%;
+    --scanner-critical: 0 84% 60%;
+    --scanner-high: 27 96% 61%;
+    --scanner-medium: 40 96% 62%;
+    --scanner-low: 142 72% 50%;
+    --scanner-info: 217 91% 60%;
+    --scanner-bg-highlight: 240 20% 24%;
+    --codeblock: 240 21% 12%;
   }
 }
 
@@ -85,4 +96,66 @@
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+/* Pulse animation for scanner */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.scanner-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Enhanced vulnerability card hover effect */
+.vulnerability-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.vulnerability-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Report templates styling */
+.report-template {
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.report-template:hover {
+  transform: scale(1.02);
+}
+
+.report-template.selected {
+  border-color: theme('colors.scanner-primary');
+  box-shadow: 0 0 0 2px theme('colors.scanner-primary');
+}
+
+/* Network graph animation */
+.network-node {
+  transition: fill 0.3s ease;
+}
+
+.network-node:hover {
+  fill: theme('colors.scanner-primary');
+}
+
+.network-line {
+  stroke-dasharray: 5;
+  animation: dashdraw 20s linear infinite;
+}
+
+@keyframes dashdraw {
+  from {
+    stroke-dashoffset: 1000;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
 }

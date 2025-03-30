@@ -9,98 +9,52 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, FileType, PieChart, AlertTriangle, Zap, Book, Download } from "lucide-react";
-import ScanConfigurationForm from "@/components/ScanConfigurationForm";
+import { Shield, FileType, PieChart, AlertTriangle, Zap, Book, Download, ServerCog, Bug, Database, FileSearch } from "lucide-react";
+import EnhancedScanConfigurationForm from "@/components/EnhancedScanConfigurationForm";
 import ScanResults from "@/components/ScanResults";
 import Dashboard from "@/components/Dashboard";
 import ReportGenerator from "@/components/ReportGenerator";
+import { performScan, ScanConfig, ScanResults as ScanResultsType } from "@/utils/scanEngine";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isScanning, setIsScanning] = useState(false);
-  const [scanResults, setScanResults] = useState<any>(null);
+  const [scanResults, setScanResults] = useState<ScanResultsType | null>(null);
+  const [lastScanConfig, setLastScanConfig] = useState<ScanConfig | undefined>(undefined);
   const { toast } = useToast();
 
-  const startScan = (config: any) => {
+  const startScan = async (config: ScanConfig) => {
     setIsScanning(true);
+    setLastScanConfig(config);
+    
     toast({
       title: "Scan Started",
       description: "Vulnerability scan has been initiated. This may take a few minutes.",
     });
     
-    // Simulate scanning process
-    setTimeout(() => {
-      const mockResults = {
-        vulnerabilities: [
-          {
-            id: 1,
-            type: 'XSS',
-            severity: 'high',
-            url: config.url,
-            parameter: 'search',
-            payload: '<script>alert("XSS")</script>',
-            description: 'Cross-site scripting vulnerability detected in search parameter',
-            evidence: '<div class="search-results">Search results for: <script>alert("XSS")</script></div>',
-            screenshot: 'https://via.placeholder.com/800x600',
-            remediation: 'Implement proper input validation and output encoding'
-          },
-          {
-            id: 2,
-            type: 'SQL Injection',
-            severity: 'high',
-            url: config.url,
-            parameter: 'id',
-            payload: "1' OR '1'='1",
-            description: 'SQL injection vulnerability detected in id parameter',
-            evidence: 'Database error: syntax error at or near "OR"',
-            screenshot: 'https://via.placeholder.com/800x600',
-            remediation: 'Use parameterized queries or prepared statements'
-          },
-          {
-            id: 3,
-            type: 'CSRF',
-            severity: 'medium',
-            url: config.url,
-            parameter: 'form',
-            payload: 'N/A',
-            description: 'No CSRF token detected in form submission',
-            evidence: '<form action="/update" method="POST">...</form>',
-            screenshot: 'https://via.placeholder.com/800x600',
-            remediation: 'Implement anti-CSRF tokens in all forms'
-          },
-          {
-            id: 4,
-            type: 'Information Disclosure',
-            severity: 'low',
-            url: config.url,
-            parameter: 'N/A',
-            payload: 'N/A',
-            description: 'Server version disclosed in HTTP headers',
-            evidence: 'Server: Apache/2.4.41 (Ubuntu)',
-            screenshot: 'https://via.placeholder.com/800x600',
-            remediation: 'Configure server to hide version information'
-          }
-        ],
-        summary: {
-          high: 2,
-          medium: 1,
-          low: 1,
-          total: 4,
-          scanTime: '3m 24s',
-          url: config.url,
-          timestamp: new Date().toISOString()
-        }
-      };
+    try {
+      // Use the new scan engine instead of setTimeout
+      const results = await performScan(config);
       
-      setScanResults(mockResults);
+      setScanResults(results);
       setIsScanning(false);
       setActiveTab("results");
       
       toast({
         title: "Scan Complete",
-        description: `Found ${mockResults.summary.total} vulnerabilities.`,
+        description: `Found ${results.summary.total} vulnerabilities.`,
       });
-    }, 5000);
+    } catch (error) {
+      setIsScanning(false);
+      
+      toast({
+        title: "Scan Error",
+        description: "An error occurred during the vulnerability scan.",
+        variant: "destructive",
+      });
+      
+      console.error("Scan error:", error);
+    }
   };
 
   return (
@@ -122,7 +76,7 @@ const Index = () => {
             <span>Dashboard</span>
           </TabsTrigger>
           <TabsTrigger value="scan" className="flex items-center gap-2">
-            <Zap className="h-4 w-4" />
+            <Bug className="h-4 w-4" />
             <span>New Scan</span>
           </TabsTrigger>
           <TabsTrigger value="results" className="flex items-center gap-2">
@@ -130,7 +84,7 @@ const Index = () => {
             <span>Results</span>
           </TabsTrigger>
           <TabsTrigger value="reports" className="flex items-center gap-2">
-            <FileType className="h-4 w-4" />
+            <FileSearch className="h-4 w-4" />
             <span>Reports</span>
           </TabsTrigger>
         </TabsList>
@@ -140,7 +94,7 @@ const Index = () => {
         </TabsContent>
 
         <TabsContent value="scan" className="space-y-6">
-          <ScanConfigurationForm onStartScan={startScan} isScanning={isScanning} />
+          <EnhancedScanConfigurationForm onStartScan={startScan} isScanning={isScanning} lastScanConfig={lastScanConfig} />
         </TabsContent>
 
         <TabsContent value="results" className="space-y-6">
