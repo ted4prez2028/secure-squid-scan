@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +7,7 @@ import { Shield, FileType, PieChart, AlertTriangle, Bug, FileSearch } from "luci
 import EnhancedScanConfigurationForm from "@/components/EnhancedScanConfigurationForm";
 import ScanResults from "@/components/ScanResults";
 import Dashboard from "@/components/Dashboard";
-import ReportGenerator from "@/components/ReportGenerator";
+import ReportGenerator from "@/components/report";
 import { ScanConfig, ScanResults as ScanResultsType } from "@/utils/scanEngine";
 import { sendScanRequest, checkScanStatus, setupLocalApiEndpoint } from "@/utils/serverApi";
 
@@ -23,7 +22,6 @@ const Index = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Fix: setupLocalApiEndpoint doesn't return a promise, so .catch is invalid
     setupLocalApiEndpoint();
   }, []);
 
@@ -209,7 +207,10 @@ const Index = () => {
                   <p className="text-muted-foreground max-w-md mx-auto mb-4">
                     Complete a vulnerability scan first to generate detailed PDF reports.
                   </p>
-                  <Button onClick={() => setActiveTab("scan")}>Start New Scan</Button>
+                  <Button onClick={() => setActiveTab("scan")} variant="purple">
+                    <Bug className="h-4 w-4" />
+                    Start New Scan
+                  </Button>
                 </div>
               </CardContent>
             </Card>
