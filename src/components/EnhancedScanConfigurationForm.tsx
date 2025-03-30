@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -53,7 +52,6 @@ const scanFormSchema = z.object({
   recordVideos: z.boolean().default(false),
   aiAnalysis: z.boolean().default(true),
   maxDepth: z.number().min(1).max(10),
-  // Additional advanced options
   followRedirects: z.boolean().default(true),
   cookieJar: z.boolean().default(true),
   respectRobotsTxt: z.boolean().default(true),
@@ -292,7 +290,7 @@ const EnhancedScanConfigurationForm: React.FC<EnhancedScanConfigurationFormProps
                       Aggressive Scan
                     </Button>
                     <Button variant="outline" onClick={() => applyScanProfile("bugbounty")} className="justify-start">
-                      <FileSearch className="mr-2 h-4 w-4 text-purple-500" />
+                      <FileType className="mr-2 h-4 w-4 text-purple-500" />
                       Bug Bounty Hunter
                     </Button>
                   </div>
