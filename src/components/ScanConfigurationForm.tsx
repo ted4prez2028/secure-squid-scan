@@ -14,7 +14,10 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Zap, Shield, AlertTriangle, Database, Lock, FileText, Image, FileBadge } from "lucide-react";
+import { Zap, Shield, AlertTriangle, Database, Lock, FileText, Image, FileBadge, Sparkles, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 const scanFormSchema = z.object({
   url: z.string().url({ message: "Please enter a valid URL" }),
@@ -46,6 +49,13 @@ const ScanConfigurationForm: React.FC<ScanConfigurationFormProps> = ({
   isScanning 
 }) => {
   const [selectedTab, setSelectedTab] = useState("basic");
+  const [isGeneratingPayloads, setIsGeneratingPayloads] = useState(false);
+  const [showPayloadsDialog, setShowPayloadsDialog] = useState(false);
+  const [generatedPayloads, setGeneratedPayloads] = useState<string[]>([]);
+  const [payloadType, setPayloadType] = useState<string>("xss");
+  const [payloadCount, setPayloadCount] = useState<number>(100);
+  const [openAIKey, setOpenAIKey] = useState<string>("");
+  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
 
   const defaultValues: Partial<ScanFormValues> = {
     scanMode: "standard",
@@ -72,6 +82,102 @@ const ScanConfigurationForm: React.FC<ScanConfigurationFormProps> = ({
   };
 
   const authRequired = form.watch("authRequired");
+
+  const generatePayloads = async () => {
+    if (!openAIKey) {
+      setShowApiKeyInput(true);
+      return;
+    }
+
+    setIsGeneratingPayloads(true);
+    toast.info(`Generating ${payloadCount} ${payloadType.toUpperCase()} payloads...`);
+
+    try {
+      // Define the system prompt based on the payload type
+      let systemPrompt = "";
+      switch (payloadType) {
+        case "xss":
+          systemPrompt = "You are a security researcher generating XSS payloads for ethical testing. Generate diverse XSS payloads that bypass different kinds of filters.";
+          break;
+        case "sql":
+          systemPrompt = "You are a security researcher generating SQL injection payloads for ethical testing. Generate diverse SQL injection payloads that target different database systems.";
+          break;
+        case "csrf":
+          systemPrompt = "You are a security researcher generating CSRF payload examples for ethical testing. Generate diverse CSRF HTML/JavaScript examples.";
+          break;
+        case "headers":
+          systemPrompt = "You are a security researcher generating security header bypass payloads for ethical testing. Generate diverse examples that could bypass security headers.";
+          break;
+        case "fileupload":
+          systemPrompt = "You are a security researcher generating file upload bypass payloads for ethical testing. Generate diverse file names and MIME types that could bypass upload restrictions.";
+          break;
+        default:
+          systemPrompt = "You are a security researcher generating security test payloads for ethical testing. Generate diverse security test payloads.";
+      }
+
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${openAIKey}`
+        },
+        body: JSON.stringify({
+          model: "gpt-4o",
+          messages: [
+            {
+              role: "system",
+              content: systemPrompt
+            },
+            {
+              role: "user",
+              content: `Generate ${payloadCount} unique ${payloadType} payloads for security testing. Return ONLY the payloads, one per line, with NO additional text, explanations, numbering, or formatting. These will be directly used in a testing tool.`
+            }
+          ],
+          temperature: 0.8,
+          top_p: 1,
+          max_tokens: 4000
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || "Failed to generate payloads");
+      }
+
+      const data = await response.json();
+      const content = data.choices[0].message.content;
+      
+      // Split the content by line and filter out empty lines
+      const payloads = content.split('\n').filter((line: string) => line.trim() !== '');
+      
+      setGeneratedPayloads(payloads);
+      setShowPayloadsDialog(true);
+      toast.success(`Generated ${payloads.length} ${payloadType.toUpperCase()} payloads`);
+    } catch (error) {
+      console.error("Error generating payloads:", error);
+      toast.error(`Failed to generate payloads: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsGeneratingPayloads(false);
+    }
+  };
+
+  const downloadPayloads = () => {
+    const blob = new Blob([generatedPayloads.join('\n')], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${payloadType}_payloads.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(`Downloaded ${generatedPayloads.length} payloads`);
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(generatedPayloads.join('\n'));
+    toast.success("Payloads copied to clipboard");
+  };
 
   return (
     <Card className="w-full">
@@ -327,6 +433,21 @@ const ScanConfigurationForm: React.FC<ScanConfigurationFormProps> = ({
                     Back: Basic Configuration
                   </Button>
                   <Button 
+                    type="button"
+                    variant="payloads"
+                    onClick={() => {
+                      if (!openAIKey) {
+                        setShowApiKeyInput(true);
+                      } else {
+                        setShowPayloadsDialog(true);
+                      }
+                    }}
+                    className="mx-2"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    Generate AI Payloads
+                  </Button>
+                  <Button 
                     type="button" 
                     variant="outline"
                     onClick={() => setSelectedTab("tests")}
@@ -502,6 +623,165 @@ const ScanConfigurationForm: React.FC<ScanConfigurationFormProps> = ({
             </Tabs>
           </form>
         </Form>
+
+        {/* OpenAI API Key Dialog */}
+        <Dialog open={showApiKeyInput} onOpenChange={setShowApiKeyInput}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Enter OpenAI API Key</DialogTitle>
+              <DialogDescription>
+                Your API key is required to generate payloads. It's only used for this request and not stored permanently.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Input
+                  id="apiKey"
+                  placeholder="sk-..."
+                  value={openAIKey}
+                  onChange={(e) => setOpenAIKey(e.target.value)}
+                  className="w-full"
+                />
+                <p className="text-xs text-muted-foreground">
+                  <AlertCircle className="h-3 w-3 inline mr-1" />
+                  Your API key will only be used in this browser session and will not be stored on our servers.
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowApiKeyInput(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  setShowApiKeyInput(false);
+                  setShowPayloadsDialog(true);
+                }}
+                disabled={!openAIKey || openAIKey.length < 10}
+              >
+                Continue
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Payloads Generation Dialog */}
+        <Dialog open={showPayloadsDialog} onOpenChange={setShowPayloadsDialog}>
+          <DialogContent className="sm:max-w-[600px] max-h-[90vh]">
+            <DialogHeader>
+              <DialogTitle>Generate Security Test Payloads</DialogTitle>
+              <DialogDescription>
+                Use AI to generate security test payloads for your scanning tests.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <FormLabel>Payload Type</FormLabel>
+                  <Select 
+                    value={payloadType}
+                    onValueChange={setPayloadType}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Payload Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="xss">XSS</SelectItem>
+                      <SelectItem value="sql">SQL Injection</SelectItem>
+                      <SelectItem value="csrf">CSRF</SelectItem>
+                      <SelectItem value="headers">Security Headers</SelectItem>
+                      <SelectItem value="fileupload">File Upload</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <FormLabel>Payload Count</FormLabel>
+                  <Select 
+                    value={payloadCount.toString()}
+                    onValueChange={(value) => setPayloadCount(parseInt(value))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Number of Payloads" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10 Payloads</SelectItem>
+                      <SelectItem value="50">50 Payloads</SelectItem>
+                      <SelectItem value="100">100 Payloads</SelectItem>
+                      <SelectItem value="200">200 Payloads</SelectItem>
+                      <SelectItem value="500">500 Payloads</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              {generatedPayloads.length > 0 ? (
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <FormLabel>Generated Payloads ({generatedPayloads.length})</FormLabel>
+                    <div className="space-x-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={copyToClipboard}
+                      >
+                        Copy All
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={downloadPayloads}
+                      >
+                        Download
+                      </Button>
+                    </div>
+                  </div>
+                  <ScrollArea className="h-[300px] border rounded-md p-4">
+                    <pre className="text-xs font-mono overflow-auto">
+                      {generatedPayloads.join('\n')}
+                    </pre>
+                  </ScrollArea>
+                </div>
+              ) : null}
+            </div>
+            
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setShowPayloadsDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="button"
+                onClick={generatePayloads}
+                disabled={isGeneratingPayloads || !openAIKey}
+                className="gap-2"
+              >
+                {isGeneratingPayloads ? (
+                  <>
+                    <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full"></div>
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    Generate Payloads
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );

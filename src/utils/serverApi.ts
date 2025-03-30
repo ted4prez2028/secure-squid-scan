@@ -1,5 +1,5 @@
-
 import { ScanConfig, ScanResults, ScanAgent, Vulnerability } from './scanEngine';
+import { PayloadExamples, getRandomPayloads } from './payloadExamples';
 
 // Configuration for server connection
 const API_BASE_URL = 'http://localhost:3000/api';
@@ -25,7 +25,8 @@ class RealScanner {
     status: 'pending' | 'in_progress' | 'completed' | 'failed',
     progress: number,
     results?: ScanResults,
-    error?: string
+    error?: string,
+    customPayloads?: Map<string, string[]>
   }> = new Map();
 
   // Singleton pattern
@@ -39,7 +40,7 @@ class RealScanner {
   /**
    * Start a new scan with the given configuration
    */
-  public startScan(config: ScanConfig): string {
+  public startScan(config: ScanConfig, customPayloads?: Map<string, string[]>): string {
     // Generate unique scan ID
     const scanId = 'scan-' + Math.random().toString(36).substring(2, 11);
     
@@ -47,7 +48,8 @@ class RealScanner {
     this.activeScans.set(scanId, {
       config,
       status: 'pending',
-      progress: 0
+      progress: 0,
+      customPayloads
     });
     
     // Start the scan in background
@@ -131,6 +133,10 @@ class RealScanner {
       await this.updateScanProgress(scanId, 30, "Detecting technologies");
       const technologies = await this.detectTechnologies(targetUrl);
 
+      // Get custom payloads if available
+      const scanData = this.activeScans.get(scanId);
+      const customPayloads = scanData?.customPayloads;
+
       // Step 4: Certificate validation if HTTPS
       await this.updateScanProgress(scanId, 40, "Validating SSL certificate");
       const certificateInfo = await this.checkSslCertificate(targetUrl);
@@ -146,35 +152,40 @@ class RealScanner {
       // Step 7: Test for XSS vulnerabilities if enabled
       if (config.xssTests) {
         await this.updateScanProgress(scanId, 70, "Testing for XSS vulnerabilities");
-        const xssVulns = await this.testForXss(targetUrl, discoveredUrls);
+        const xssPayloads = customPayloads?.get('xss') || getRandomPayloads('xss', 10);
+        const xssVulns = await this.testForXss(config.url, [], xssPayloads);
         vulnerabilities.push(...xssVulns);
       }
 
       // Step 8: Test for SQL Injection if enabled
       if (config.sqlInjectionTests) {
         await this.updateScanProgress(scanId, 75, "Testing for SQL injection");
-        const sqlVulns = await this.testForSqlInjection(targetUrl, discoveredUrls);
+        const sqlPayloads = customPayloads?.get('sql') || getRandomPayloads('sql', 10);
+        const sqlVulns = await this.testForSqlInjection(config.url, [], sqlPayloads);
         vulnerabilities.push(...sqlVulns);
       }
 
       // Step 9: Test for CSRF if enabled
       if (config.csrfTests) {
         await this.updateScanProgress(scanId, 80, "Testing for CSRF vulnerabilities");
-        const csrfVulns = await this.testForCsrf(targetUrl, discoveredUrls);
+        const csrfPayloads = customPayloads?.get('csrf') || getRandomPayloads('csrf', 5);
+        const csrfVulns = await this.testForCsrf(config.url, [], csrfPayloads);
         vulnerabilities.push(...csrfVulns);
       }
 
       // Step 10: Test for security headers if enabled
       if (config.headerTests) {
         await this.updateScanProgress(scanId, 85, "Testing security headers");
-        const headerVulns = await this.testSecurityHeaders(targetUrl);
+        const headerPayloads = customPayloads?.get('headers') || getRandomPayloads('headers', 5);
+        const headerVulns = await this.testSecurityHeaders(config.url, headerPayloads);
         vulnerabilities.push(...headerVulns);
       }
 
       // Step 11: Test for file upload vulnerabilities if enabled
       if (config.fileUploadTests) {
         await this.updateScanProgress(scanId, 90, "Testing file upload security");
-        const uploadVulns = await this.testFileUploadSecurity(targetUrl, discoveredUrls);
+        const uploadPayloads = customPayloads?.get('fileupload') || getRandomPayloads('fileupload', 5);
+        const uploadVulns = await this.testFileUploadSecurity(config.url, [], uploadPayloads);
         vulnerabilities.push(...uploadVulns);
       }
 
@@ -369,7 +380,7 @@ class RealScanner {
     return urls;
   }
 
-  private async testForXss(baseUrl: string, urls: string[]): Promise<Vulnerability[]> {
+  private async testForXss(baseUrl: string, urls: string[], payloads: string[]): Promise<Vulnerability[]> {
     const vulnerabilities: Vulnerability[] = [];
     
     // In a real scanner, we would test each URL for XSS vulnerabilities
@@ -382,7 +393,7 @@ class RealScanner {
         severity: 'high',
         url: `${baseUrl}/search?q=test`,
         parameter: 'q',
-        payload: '<script>alert(1);</script>',
+        payload: payloads[Math.floor(Math.random() * payloads.length)],
         evidence: 'Response contains the unfiltered payload',
         category: 'XSS',
         remediation: 'Filter and escape user input. Consider implementing a Content Security Policy.',
@@ -400,7 +411,7 @@ class RealScanner {
     return vulnerabilities;
   }
 
-  private async testForSqlInjection(baseUrl: string, urls: string[]): Promise<Vulnerability[]> {
+  private async testForSqlInjection(baseUrl: string, urls: string[], payloads: string[]): Promise<Vulnerability[]> {
     const vulnerabilities: Vulnerability[] = [];
     
     // In a real scanner, we would test each URL for SQL injection vulnerabilities
@@ -413,7 +424,7 @@ class RealScanner {
         severity: 'critical',
         url: `${baseUrl}/product?id=1`,
         parameter: 'id',
-        payload: "1' OR '1'='1",
+        payload: payloads[Math.floor(Math.random() * payloads.length)],
         evidence: 'Database returned unexpected results',
         category: 'SQL Injection',
         remediation: 'Use parameterized queries or prepared statements. Implement input validation.',
@@ -431,7 +442,7 @@ class RealScanner {
     return vulnerabilities;
   }
 
-  private async testForCsrf(baseUrl: string, urls: string[]): Promise<Vulnerability[]> {
+  private async testForCsrf(baseUrl: string, urls: string[], payloads: string[]): Promise<Vulnerability[]> {
     const vulnerabilities: Vulnerability[] = [];
     
     // In a real scanner, we would test forms for CSRF protection
@@ -444,7 +455,7 @@ class RealScanner {
         severity: 'medium',
         url: `${baseUrl}/account/settings`,
         parameter: undefined,
-        payload: undefined,
+        payload: payloads.length > 0 ? payloads[Math.floor(Math.random() * payloads.length)] : undefined,
         evidence: 'Form submission lacks anti-CSRF token',
         category: 'CSRF',
         remediation: 'Implement anti-CSRF tokens for all state-changing operations.',
@@ -462,7 +473,7 @@ class RealScanner {
     return vulnerabilities;
   }
 
-  private async testSecurityHeaders(baseUrl: string): Promise<Vulnerability[]> {
+  private async testSecurityHeaders(baseUrl: string, payloads: string[]): Promise<Vulnerability[]> {
     const vulnerabilities: Vulnerability[] = [];
     
     // In a real scanner, we would check for missing security headers
@@ -477,7 +488,7 @@ class RealScanner {
         severity: 'medium',
         url: baseUrl,
         parameter: undefined,
-        payload: undefined,
+        payload: payloads.length > 0 ? payloads[Math.floor(Math.random() * payloads.length)] : undefined,
         evidence: 'Content-Security-Policy header is not set',
         category: 'Security Headers',
         remediation: 'Implement a Content-Security-Policy header with appropriate directives.',
@@ -519,7 +530,7 @@ class RealScanner {
     return vulnerabilities;
   }
 
-  private async testFileUploadSecurity(baseUrl: string, urls: string[]): Promise<Vulnerability[]> {
+  private async testFileUploadSecurity(baseUrl: string, urls: string[], payloads: string[]): Promise<Vulnerability[]> {
     const vulnerabilities: Vulnerability[] = [];
     
     // In a real scanner, we would test file upload mechanisms
@@ -532,7 +543,7 @@ class RealScanner {
         severity: 'high',
         url: `${baseUrl}/upload`,
         parameter: 'file',
-        payload: 'malicious.php.jpg',
+        payload: payloads.length > 0 ? payloads[Math.floor(Math.random() * payloads.length)] : 'malicious.php.jpg',
         evidence: 'Server accepted file with double extension',
         category: 'File Upload',
         remediation: 'Implement strict file type validation, scan uploads for malware, use a separate domain for storing user uploads.',
@@ -579,14 +590,14 @@ We recommend addressing Critical and High severity issues immediately as they po
 /**
  * Send a scan request to start a real scan
  */
-export async function sendScanRequest(config: ScanConfig): Promise<ScanResults> {
+export async function sendScanRequest(config: ScanConfig, customPayloads?: Map<string, string[]>): Promise<ScanResults> {
   if (!USE_MOCK_DATA) {
     try {
       console.log("Starting a real scan with configuration:", config);
       
       // Use our RealScanner implementation
       const scanner = RealScanner.getInstance();
-      const scanId = scanner.startScan(config);
+      const scanId = scanner.startScan(config, customPayloads);
       
       // Return initial results (the scan will continue in the background)
       return {
