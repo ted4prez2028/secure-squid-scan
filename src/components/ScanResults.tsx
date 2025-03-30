@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,9 +8,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { AlertTriangle, ShieldAlert, ShieldCheck, Clock, AlertCircle, Search, ArrowUpRight, FileText, Download, Server, Shield, Database, FileCode } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
-import placeholderScreenshot1 from '/public/placeholder-screenshot-1.jpg';
-import placeholderScreenshot2 from '/public/placeholder-screenshot-2.jpg';
 import { toast } from "sonner";
+
+import placeholderScreenshot1 from '../assets/placeholder-screenshot-1.jpg';
+import placeholderScreenshot2 from '../assets/placeholder-screenshot-2.jpg';
 
 interface ScanResultsProps {
   results: any;
@@ -62,7 +62,6 @@ const ScanResults: React.FC<ScanResultsProps> = ({ results }) => {
   }, [activeVulnerabilitiesTab, results]);
 
   useEffect(() => {
-    // Auto-select the first vulnerability when results load or filter changes
     if (filteredVulnerabilities.length > 0 && selectedVuln === null) {
       setSelectedVuln(filteredVulnerabilities[0].id);
     }
@@ -95,7 +94,6 @@ const ScanResults: React.FC<ScanResultsProps> = ({ results }) => {
     if (vuln && vuln.screenshot) {
       return vuln.screenshot;
     }
-    // Randomly select a placeholder based on vulnerability type
     const placeholders = [placeholderScreenshot1, placeholderScreenshot2];
     return placeholders[Math.floor(Math.random() * placeholders.length)];
   };
@@ -109,7 +107,6 @@ const ScanResults: React.FC<ScanResultsProps> = ({ results }) => {
     return <AlertTriangle className="h-4 w-4" />;
   };
 
-  // Helper to format timestamps
   const formatDateTime = (timestamp: string) => {
     if (!timestamp) return 'N/A';
     try {
@@ -119,7 +116,6 @@ const ScanResults: React.FC<ScanResultsProps> = ({ results }) => {
     }
   };
 
-  // Helper to format scan duration
   const formatDuration = (ms: number) => {
     if (!ms) return 'N/A';
     const seconds = Math.floor(ms / 1000);
