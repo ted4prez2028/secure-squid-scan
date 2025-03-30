@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { AlertTriangle, ShieldAlert, ShieldCheck, Clock, AlertCircle, Search, ArrowUpRight, FileText, Download } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
+import placeholderScreenshot1 from '/public/placeholder-screenshot-1.jpg';
+import placeholderScreenshot2 from '/public/placeholder-screenshot-2.jpg';
 
 interface ScanResultsProps {
   results: any;
@@ -64,6 +65,15 @@ const ScanResults: React.FC<ScanResultsProps> = ({ results }) => {
     { name: 'Medium', value: results.summary.medium, color: '#FFB74D' },
     { name: 'Low', value: results.summary.low, color: '#4CAF50' },
   ];
+
+  const getVulnerabilityScreenshot = (vuln: any) => {
+    if (vuln && vuln.screenshot) {
+      return vuln.screenshot;
+    }
+    // Randomly select a placeholder based on vulnerability type
+    const placeholders = [placeholderScreenshot1, placeholderScreenshot2];
+    return placeholders[Math.floor(Math.random() * placeholders.length)];
+  };
 
   return (
     <div className="space-y-6">
@@ -282,9 +292,11 @@ const ScanResults: React.FC<ScanResultsProps> = ({ results }) => {
                         <h4 className="text-sm font-medium mb-1">Screenshot</h4>
                         <div className="mt-2 border rounded-md overflow-hidden">
                           <img 
-                            src={results.vulnerabilities.find((v: any) => v.id === selectedVuln)?.screenshot} 
+                            src={getVulnerabilityScreenshot(
+                              results.vulnerabilities.find((v: any) => v.id === selectedVuln)
+                            )} 
                             alt="Vulnerability screenshot" 
-                            className="w-full h-auto"
+                            className="w-full h-auto object-cover max-h-[500px]"
                           />
                         </div>
                       </div>
