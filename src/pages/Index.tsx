@@ -19,13 +19,49 @@ import { performScan, ScanConfig, ScanResults as ScanResultsType } from "@/utils
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isScanning, setIsScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState(0);
   const [scanResults, setScanResults] = useState<ScanResultsType | null>(null);
+  const [scanHistory, setScanHistory] = useState<Array<{id: string, url: string, date: string, results: ScanResultsType}>>([]);
   const [lastScanConfig, setLastScanConfig] = useState<ScanConfig | undefined>(undefined);
   const { toast } = useToast();
 
+  // Function to monitor console logs for progress updates
+  const monitorProgress = () => {
+    // Save the original console.log
+    const originalConsoleLog = console.log;
+    
+    // Override console.log to catch progress updates
+    console.log = function(message: any, ...args: any[]) {
+      // Pass through to the original console.log
+      originalConsoleLog.apply(console, [message, ...args]);
+      
+      // Check if this is a progress update
+      if (typeof message === 'string' && message.includes('Scan progress:')) {
+        try {
+          const progressMatch = message.match(/Scan progress: (\d+)%/);
+          if (progressMatch && progressMatch[1]) {
+            const progress = parseInt(progressMatch[1]);
+            setScanProgress(progress);
+          }
+        } catch (e) {
+          // Ignore parsing errors
+        }
+      }
+    };
+    
+    return () => {
+      // Restore the original console.log when done
+      console.log = originalConsoleLog;
+    };
+  };
+
   const startScan = async (config: ScanConfig) => {
     setIsScanning(true);
+    setScanProgress(0);
     setLastScanConfig(config);
+    
+    // Set up progress monitoring
+    const cleanupMonitor = monitorProgress();
     
     toast({
       title: "Scan Started",
@@ -33,19 +69,35 @@ const Index = () => {
     });
     
     try {
-      // Use the new scan engine instead of setTimeout
+      // Use the scan engine to perform the scan
       const results = await performScan(config);
       
+      // Save to scan history
+      const newScanHistory = [{
+        id: results.summary.scanID,
+        url: config.url,
+        date: new Date().toISOString(),
+        results: results
+      }, ...scanHistory];
+      
+      // Limit history to the last 10 scans
+      if (newScanHistory.length > 10) {
+        newScanHistory.pop();
+      }
+      
+      setScanHistory(newScanHistory);
       setScanResults(results);
       setIsScanning(false);
+      setScanProgress(100);
       setActiveTab("results");
       
       toast({
         title: "Scan Complete",
-        description: `Found ${results.summary.total} vulnerabilities.`,
+        description: `Found ${results.summary.total} vulnerabilities (${results.summary.critical} critical, ${results.summary.high} high).`,
       });
     } catch (error) {
       setIsScanning(false);
+      setScanProgress(0);
       
       toast({
         title: "Scan Error",
@@ -54,6 +106,17 @@ const Index = () => {
       });
       
       console.error("Scan error:", error);
+    } finally {
+      // Clean up the console.log override
+      cleanupMonitor();
+    }
+  };
+
+  const viewHistoricalScan = (scanId: string) => {
+    const historicalScan = scanHistory.find(scan => scan.id === scanId);
+    if (historicalScan) {
+      setScanResults(historicalScan.results);
+      setActiveTab("results");
     }
   };
 
@@ -82,6 +145,11 @@ const Index = () => {
           <TabsTrigger value="results" className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4" />
             <span>Results</span>
+            {scanResults && (
+              <span className="ml-1.5 w-5 h-5 rounded-full bg-scanner-primary/20 text-scanner-primary flex items-center justify-center text-xs font-medium">
+                {scanResults.summary.total}
+              </span>
+            )}
           </TabsTrigger>
           <TabsTrigger value="reports" className="flex items-center gap-2">
             <FileSearch className="h-4 w-4" />
@@ -90,11 +158,21 @@ const Index = () => {
         </TabsList>
 
         <TabsContent value="dashboard" className="space-y-6">
-          <Dashboard scanResults={scanResults} startNewScan={() => setActiveTab("scan")} />
+          <Dashboard 
+            scanResults={scanResults} 
+            startNewScan={() => setActiveTab("scan")} 
+            scanHistory={scanHistory}
+            viewHistoricalScan={viewHistoricalScan}
+          />
         </TabsContent>
 
         <TabsContent value="scan" className="space-y-6">
-          <EnhancedScanConfigurationForm onStartScan={startScan} isScanning={isScanning} lastScanConfig={lastScanConfig} />
+          <EnhancedScanConfigurationForm 
+            onStartScan={startScan} 
+            isScanning={isScanning} 
+            scanProgress={scanProgress}
+            lastScanConfig={lastScanConfig} 
+          />
         </TabsContent>
 
         <TabsContent value="results" className="space-y-6">

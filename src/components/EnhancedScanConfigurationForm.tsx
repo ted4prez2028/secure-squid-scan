@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -68,12 +67,14 @@ type ScanFormValues = z.infer<typeof scanFormSchema>;
 interface EnhancedScanConfigurationFormProps {
   onStartScan: (config: ScanConfig) => void;
   isScanning: boolean;
+  scanProgress?: number;
   lastScanConfig?: ScanConfig;
 }
 
 const EnhancedScanConfigurationForm: React.FC<EnhancedScanConfigurationFormProps> = ({ 
   onStartScan, 
   isScanning,
+  scanProgress = 0,
   lastScanConfig 
 }) => {
   const [selectedTab, setSelectedTab] = useState("basic");
@@ -105,7 +106,6 @@ const EnhancedScanConfigurationForm: React.FC<EnhancedScanConfigurationFormProps
   });
 
   const onSubmit = (data: ScanFormValues) => {
-    // Convert to ScanConfig interface from scanEngine.ts
     const scanConfig: ScanConfig = {
       url: data.url,
       scanMode: data.scanMode,
@@ -130,7 +130,6 @@ const EnhancedScanConfigurationForm: React.FC<EnhancedScanConfigurationFormProps
   const authRequired = form.watch("authRequired");
   const scanMode = form.watch("scanMode");
 
-  // Apply scan profile templates
   const applyScanProfile = (profile: string) => {
     switch(profile) {
       case "passive":
@@ -205,7 +204,6 @@ const EnhancedScanConfigurationForm: React.FC<EnhancedScanConfigurationFormProps
     setShowScanProfiles(false);
   };
 
-  // Get expected scan time
   const getExpectedScanTime = () => {
     const baseTime = scanMode === 'quick' ? 5 : (scanMode === 'standard' ? 15 : 30);
     const depthMultiplier = form.watch("maxDepth") / 3;
@@ -213,13 +211,11 @@ const EnhancedScanConfigurationForm: React.FC<EnhancedScanConfigurationFormProps
     
     let totalTime = baseTime * depthMultiplier / threadDivisor;
     
-    // Add time for active tests
     if (form.watch("xssTests")) totalTime += baseTime * 0.2;
     if (form.watch("sqlInjectionTests")) totalTime += baseTime * 0.3;
     if (form.watch("fileUploadTests")) totalTime += baseTime * 0.15;
     if (form.watch("bruteforceDepth") > 0) totalTime += baseTime * form.watch("bruteforceDepth") * 0.4;
     
-    // Format as minutes if less than 60, otherwise as hours and minutes
     if (totalTime < 60) {
       return `${Math.ceil(totalTime)} minutes`;
     } else {
@@ -935,7 +931,14 @@ const EnhancedScanConfigurationForm: React.FC<EnhancedScanConfigurationFormProps
                   >
                     {isScanning ? (
                       <>
-                        <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full"></div>
+                        <div className="relative h-4 w-4">
+                          <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full"></div>
+                          {scanProgress > 0 && scanProgress < 100 && (
+                            <div className="absolute inset-0 flex items-center justify-center text-[8px] font-bold">
+                              {scanProgress}%
+                            </div>
+                          )}
+                        </div>
                         Scanning...
                       </>
                     ) : (

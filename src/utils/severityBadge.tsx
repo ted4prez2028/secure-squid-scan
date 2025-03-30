@@ -4,20 +4,24 @@ import { Shield, AlertTriangle, AlertCircle, Info, Check } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-type SeverityLevel = 'critical' | 'high' | 'medium' | 'low' | 'info';
+export type SeverityLevel = 'critical' | 'high' | 'medium' | 'low' | 'info';
 
 interface SeverityBadgeProps {
   severity: SeverityLevel;
   showIcon?: boolean;
   className?: string;
   size?: 'sm' | 'default' | 'lg';
+  count?: number;
+  showCount?: boolean;
 }
 
 export const SeverityBadge: React.FC<SeverityBadgeProps> = ({ 
   severity, 
   showIcon = true,
   className,
-  size = 'default'
+  size = 'default',
+  count,
+  showCount = false
 }) => {
   const severityConfig: Record<SeverityLevel, { color: string, icon: React.ReactNode, label: string }> = {
     critical: { 
@@ -60,6 +64,11 @@ export const SeverityBadge: React.FC<SeverityBadgeProps> = ({
     >
       {showIcon && icon}
       <span className="capitalize">{label}</span>
+      {showCount && count !== undefined && count > 0 && (
+        <span className="ml-1 px-1.5 py-0.5 bg-black/20 rounded-full text-xs font-medium">
+          {count}
+        </span>
+      )}
     </Badge>
   );
 };
