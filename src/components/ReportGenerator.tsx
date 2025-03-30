@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, Download, CheckCircle2, FileImage, FileBadge, Clipboard, Clock, Shield, User } from "lucide-react";
+import { FileText, Download, CheckCircle2, FileImage, FileBadge, Clipboard, Clock, Shield, User, AlertCircle } from "lucide-react";
 import { ScanResults } from '@/utils/scanEngine';
 import { generatePdfReport, generateHtmlReport, generateCsvReport } from '@/utils/reportGenerator';
 
@@ -25,6 +25,7 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
   const [reportTemplate, setReportTemplate] = useState('detailed');
   const [activeTab, setActiveTab] = useState('standard');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showErrorToast, setShowErrorToast] = useState(false);
   const { toast } = useToast();
   
   const [sections, setSections] = useState({
@@ -36,6 +37,7 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
     appendices: true,
   });
 
+  // Initialize report history with sample data
   const [reportHistory, setReportHistory] = useState([
     {
       name: `Security Assessment Report - ${scanResults?.summary?.url || 'Example.com'}`,
@@ -62,7 +64,7 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
       let reportData = null;
       
       // Generate the report based on the selected format
-      switch (reportFormat) {
+      switch (reportFormat.toLowerCase()) {
         case 'pdf':
           reportData = generatePdfReport(scanResults);
           break;
@@ -153,6 +155,10 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
         description: "Failed to download the report. Please try again.",
         variant: "destructive",
       });
+      
+      // Show error toast that stays visible longer
+      setShowErrorToast(true);
+      setTimeout(() => setShowErrorToast(false), 5000);
     }
   };
 
@@ -219,6 +225,48 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
       title: "Create Template",
       description: "Template creation functionality will be available in the next update.",
     });
+  };
+
+  // Helper to render screenshot placeholders for UI preview
+  const renderScreenshotPlaceholder = () => {
+    if (!scanResults?.vulnerabilities || scanResults.vulnerabilities.length === 0) {
+      return (
+        <div className="text-center p-4 border border-dashed rounded-md text-muted-foreground">
+          No vulnerability screenshots available
+        </div>
+      );
+    }
+
+    // Check for screenshots in vulnerabilities
+    const hasScreenshots = scanResults.vulnerabilities.some(v => v.screenshot);
+    
+    if (!hasScreenshots) {
+      return (
+        <div className="text-center p-4 border border-dashed rounded-md text-muted-foreground flex items-center justify-center gap-2">
+          <AlertCircle className="h-4 w-4" />
+          No screenshots available for the detected vulnerabilities
+        </div>
+      );
+    }
+    
+    return (
+      <div className="grid grid-cols-1 gap-4">
+        {scanResults.vulnerabilities.map((vuln, idx) => 
+          vuln.screenshot && (
+            <div key={idx} className="border rounded-md overflow-hidden">
+              <img 
+                src={vuln.screenshot} 
+                alt={`Screenshot of ${vuln.name || 'vulnerability'}`}
+                className="w-full h-auto object-contain"
+              />
+              <div className="p-2 bg-background text-xs">
+                {vuln.name || `Vulnerability #${idx+1}`}
+              </div>
+            </div>
+          )
+        )}
+      </div>
+    );
   };
 
   return (
@@ -597,6 +645,22 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
         </CardFooter>
       </Card>
       
+      {/* Error toast for download failures */}
+      {showErrorToast && (
+        <div className="fixed bottom-4 right-4 bg-destructive text-destructive-foreground p-4 rounded-md shadow-lg z-50 max-w-md animate-in slide-in-from-right-10 fade-in-20">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 mt-0.5" />
+            <div>
+              <h3 className="font-medium mb-1">Download Failed</h3>
+              <p className="text-sm">
+                There was an error generating the PDF report. This may be due to issues with jsPDF AutoTable or missing screenshots. 
+                Try a different format or check the console for more details.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="md:col-span-2">
           <CardHeader>
@@ -723,3 +787,4 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
 };
 
 export default ReportGenerator;
+

@@ -51,7 +51,7 @@ function formatDuration(milliseconds: number): string {
 
 // Generate a PDF report from scan results
 export function generatePdfReport(scanResults: ScanResults): jsPDF {
-  const doc = new jsPDF();
+  const doc = new jsPDF() as jsPDF & { autoTable: Function };
   
   // Add title
   doc.setFontSize(22);
@@ -82,11 +82,11 @@ export function generatePdfReport(scanResults: ScanResults): jsPDF {
     ['Scan End Time', formatDate(scanResults.summary.endTime)],
     ['Scan Duration', formatDuration(scanResults.summary.duration)],
     ['Scan Mode', scanResults.summary.scanMode.toUpperCase()],
-    ['Pages Scanned', scanResults.summary.testedPages?.toString() || scanResults.summary.testedURLs.toString()],
+    ['Pages Scanned', scanResults.summary.testedPages?.toString() || scanResults.summary.testedURLs?.toString() || '0'],
     ['Requests Sent', scanResults.summary.requestsSent?.toString() || 'N/A'],
   ];
   
-  (doc as any).autoTable({
+  doc.autoTable({
     startY: 46,
     head: [['Property', 'Value']],
     body: summaryData,
@@ -107,7 +107,9 @@ export function generatePdfReport(scanResults: ScanResults): jsPDF {
   // Vulnerability Summary
   doc.setFontSize(16);
   doc.setTextColor(33, 33, 33);
-  doc.text('Vulnerability Summary', 20, (doc as any).lastAutoTable.finalY + 15);
+  
+  const lastTableY = (doc as any).lastAutoTable?.finalY || 100;
+  doc.text('Vulnerability Summary', 20, lastTableY + 15);
   
   // Create vulnerability summary table
   const vulnerabilitySummary = [
@@ -119,8 +121,8 @@ export function generatePdfReport(scanResults: ScanResults): jsPDF {
     ['Total', scanResults.summary.total.toString()]
   ];
   
-  (doc as any).autoTable({
-    startY: (doc as any).lastAutoTable.finalY + 20,
+  doc.autoTable({
+    startY: lastTableY + 20,
     head: [['Severity', 'Count']],
     body: vulnerabilitySummary,
     theme: 'grid',
@@ -160,7 +162,7 @@ export function generatePdfReport(scanResults: ScanResults): jsPDF {
   doc.setTextColor(33, 33, 33);
   doc.text('Detailed Findings', 20, 20);
   
-  // Create vulnerability details table
+  // Create vulnerability details table with screenshots if available
   const vulnerabilityDetails = scanResults.vulnerabilities.map((vuln: Vulnerability) => {
     const severity = getSeverityBadge(vuln.severity);
     return [
@@ -171,7 +173,7 @@ export function generatePdfReport(scanResults: ScanResults): jsPDF {
     ];
   });
   
-  (doc as any).autoTable({
+  doc.autoTable({
     startY: 25,
     head: [['Severity', 'Vulnerability', 'URL', 'Parameter']],
     body: vulnerabilityDetails,
@@ -192,7 +194,7 @@ export function generatePdfReport(scanResults: ScanResults): jsPDF {
     }
   });
   
-  // Add individual vulnerability details
+  // Add individual vulnerability details with screenshots
   let currentY = (doc as any).lastAutoTable.finalY + 15;
   
   scanResults.vulnerabilities.forEach((vuln: Vulnerability, index: number) => {
@@ -226,6 +228,22 @@ export function generatePdfReport(scanResults: ScanResults): jsPDF {
     
     currentY += descriptionLines.length * 5 + 5;
     
+    // Add screenshot if available
+    if (vuln.screenshot) {
+      try {
+        doc.setFontSize(10);
+        doc.setTextColor(33, 33, 33);
+        doc.text('Screenshot:', 20, currentY);
+        currentY += 5;
+        
+        // Add the image
+        doc.addImage(vuln.screenshot, 'PNG', 20, currentY, 160, 80);
+        currentY += 85;
+      } catch (err) {
+        console.error('Error adding screenshot to PDF:', err);
+      }
+    }
+    
     // Details table
     const vulnData = [
       ['URL', vuln.url || 'N/A'],
@@ -236,7 +254,7 @@ export function generatePdfReport(scanResults: ScanResults): jsPDF {
       ['Discovered', formatDate(vuln.discoveredAt)]
     ];
     
-    (doc as any).autoTable({
+    doc.autoTable({
       startY: currentY,
       body: vulnData,
       theme: 'plain',
