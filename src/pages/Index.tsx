@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,9 +23,8 @@ const Index = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    setupLocalApiEndpoint().catch(error => {
-      console.error("Failed to set up local API endpoints:", error);
-    });
+    // Fix: setupLocalApiEndpoint doesn't return a promise, so .catch is invalid
+    setupLocalApiEndpoint();
   }, []);
 
   useEffect(() => {

@@ -10,6 +10,7 @@ export interface ScanStatusResponse {
   scanId: string;
   status: ScanStatus;
   progress: number;
+  progressMessage?: string; // Add description of current scan step
   results?: ScanResults;
   error?: string;
 }
@@ -19,9 +20,21 @@ export interface ScanData {
   config: ScanConfig;
   status: ScanStatus;
   progress: number;
+  progressMessage?: string;
   results?: ScanResults;
   error?: string;
   customPayloads?: Map<string, string[]>;
+  startTime?: string;
+  endTime?: string;
+  targetInfo?: {
+    serverName?: string;
+    technologies?: string[];
+    operatingSystem?: string;
+    openPorts?: number[];
+  };
+  requestsSent: number;
+  responsesReceived: number;
+  vulnerabilitiesFound: number;
 }
 
 // API configuration
@@ -33,4 +46,28 @@ export interface ServerResponse<T> {
   success: boolean;
   data?: T;
   error?: string;
+  errorDetails?: any;
+}
+
+// Detection accuracy levels
+export type DetectionAccuracy = 'low' | 'medium' | 'high';
+
+// Scan context for maintaining state
+export interface ScanContext {
+  url: string;
+  parameters: Map<string, string[]>;
+  cookies: Map<string, string>;
+  headers: Map<string, string>;
+  forms: any[];
+  scripts: string[];
+  technologies: string[];
+}
+
+// Enhanced payload type
+export interface TestPayload {
+  payload: string;
+  type: string;
+  description: string;
+  expectedResponse?: string;
+  accuracy: DetectionAccuracy;
 }
