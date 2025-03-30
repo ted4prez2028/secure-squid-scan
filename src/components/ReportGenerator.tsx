@@ -12,14 +12,18 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { FileText, Download, CheckCircle2, FileImage, FileBadge, Clipboard, Clock, Shield, User } from "lucide-react";
+import { ScanResults } from '@/utils/scanEngine';
+import { generatePdfReport, generateHtmlReport, generateCsvReport } from '@/utils/reportGenerator';
 
 interface ReportGeneratorProps {
-  scanResults: any;
+  scanResults: ScanResults;
 }
 
 const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
+  const [reportTitle, setReportTitle] = useState(`Vulnerability Scan Report - ${scanResults?.summary?.url || 'Target Website'}`);
   const [reportFormat, setReportFormat] = useState('pdf');
   const [reportTemplate, setReportTemplate] = useState('detailed');
+  const [activeTab, setActiveTab] = useState('standard');
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
   
@@ -28,26 +32,193 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
     vulnerabilityDetails: true,
     remediation: true,
     screenshots: true,
-    appendices: true,
     methodology: true,
+    appendices: true,
   });
+
+  const [reportHistory, setReportHistory] = useState([
+    {
+      name: `Security Assessment Report - ${scanResults?.summary?.url || 'Example.com'}`,
+      date: 'Oct 15, 2023 09:45 AM',
+      format: 'PDF',
+      data: null
+    },
+    {
+      name: 'Bug Bounty Report - Critical XSS',
+      date: 'Oct 10, 2023 02:15 PM',
+      format: 'HTML',
+      data: null
+    }
+  ]);
 
   const handleSectionChange = (section: string, checked: boolean) => {
     setSections({ ...sections, [section]: checked });
   };
   
-  const generateReport = () => {
+  const generateReport = async () => {
     setIsGenerating(true);
     
-    // Simulate report generation
-    setTimeout(() => {
+    try {
+      let reportData = null;
+      
+      // Generate the report based on the selected format
+      switch (reportFormat) {
+        case 'pdf':
+          reportData = generatePdfReport(scanResults);
+          break;
+        case 'html':
+          reportData = generateHtmlReport(scanResults);
+          break;
+        case 'markdown':
+          reportData = generateCsvReport(scanResults); // Using CSV as a placeholder for Markdown
+          break;
+        default:
+          reportData = generatePdfReport(scanResults);
+      }
+      
+      // Add to report history
+      const newReport = {
+        name: reportTitle,
+        date: new Date().toLocaleString(),
+        format: reportFormat.toUpperCase(),
+        data: reportData
+      };
+      
+      setReportHistory([newReport, ...reportHistory]);
+      
+      setTimeout(() => {
+        setIsGenerating(false);
+        
+        toast({
+          title: "Report Generated",
+          description: `Your ${reportFormat.toUpperCase()} report has been generated successfully.`,
+        });
+      }, 1500);
+    } catch (error) {
+      console.error("Error generating report:", error);
       setIsGenerating(false);
       
       toast({
-        title: "Report Generated",
-        description: `Your ${reportFormat.toUpperCase()} report has been generated successfully.`,
+        title: "Error",
+        description: "Failed to generate report. Please try again.",
+        variant: "destructive",
       });
-    }, 3000);
+    }
+  };
+
+  const downloadReport = (report: any) => {
+    try {
+      if (!report.data) {
+        // If this is a historical report with no data, generate it now
+        let reportData = null;
+        
+        switch (report.format.toLowerCase()) {
+          case 'pdf':
+            reportData = generatePdfReport(scanResults);
+            // For PDF, we use the output method to save the file
+            reportData.save(`${report.name.replace(/\s+/g, '_')}.pdf`);
+            break;
+          case 'html':
+            reportData = generateHtmlReport(scanResults);
+            // For HTML, create a Blob and download it
+            downloadBlob(reportData, `${report.name.replace(/\s+/g, '_')}.html`, 'text/html');
+            break;
+          case 'csv':
+          case 'markdown':
+            reportData = generateCsvReport(scanResults);
+            // For CSV/Markdown, create a Blob and download it
+            downloadBlob(reportData, `${report.name.replace(/\s+/g, '_')}.csv`, 'text/csv');
+            break;
+        }
+      } else {
+        // Handle already generated reports
+        if (report.format.toLowerCase() === 'pdf' && typeof report.data.save === 'function') {
+          report.data.save(`${report.name.replace(/\s+/g, '_')}.pdf`);
+        } else {
+          const mimeType = report.format.toLowerCase() === 'html' ? 'text/html' : 'text/csv';
+          const extension = report.format.toLowerCase() === 'html' ? 'html' : 'csv';
+          downloadBlob(report.data, `${report.name.replace(/\s+/g, '_')}.${extension}`, mimeType);
+        }
+      }
+      
+      toast({
+        title: "Download Started",
+        description: `Your ${report.format} report download has started.`,
+      });
+    } catch (error) {
+      console.error("Error downloading report:", error);
+      
+      toast({
+        title: "Download Failed",
+        description: "Failed to download the report. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const downloadBlob = (content: string, filename: string, contentType: string) => {
+    const blob = new Blob([content], { type: contentType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const useTemplate = (templateName: string) => {
+    // Set appropriate configuration based on the template
+    switch (templateName) {
+      case 'HackerOne Template':
+        setReportTemplate('bugbounty');
+        setActiveTab('standard');
+        // Configure sections for H1 submissions
+        setSections({
+          ...sections,
+          executiveSummary: true,
+          vulnerabilityDetails: true,
+          remediation: true,
+          screenshots: true,
+          methodology: false,
+          appendices: false
+        });
+        break;
+      case 'PCI Compliance':
+        setReportTemplate('compliance');
+        setActiveTab('standard');
+        // Configure sections for compliance reports
+        setSections({
+          ...sections,
+          executiveSummary: true,
+          vulnerabilityDetails: true,
+          remediation: true,
+          screenshots: true,
+          methodology: true,
+          appendices: true
+        });
+        break;
+      case 'My Custom Template':
+        setReportTemplate('detailed');
+        setActiveTab('standard');
+        break;
+      default:
+        // Default case
+        break;
+    }
+    
+    toast({
+      title: "Template Applied",
+      description: `${templateName} has been applied to your report.`,
+    });
+  };
+
+  const createTemplate = () => {
+    toast({
+      title: "Create Template",
+      description: "Template creation functionality will be available in the next update.",
+    });
   };
 
   return (
@@ -63,7 +234,7 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <Tabs defaultValue="standard" className="space-y-4">
+          <Tabs defaultValue="standard" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
             <TabsList>
               <TabsTrigger value="standard">Standard Report</TabsTrigger>
               <TabsTrigger value="advanced">Advanced Options</TabsTrigger>
@@ -78,13 +249,18 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
                     <Input
                       id="reportTitle"
                       placeholder="Security Assessment Report"
-                      defaultValue={`Vulnerability Scan Report - ${scanResults?.summary?.url || 'Target Website'}`}
+                      value={reportTitle}
+                      onChange={(e) => setReportTitle(e.target.value)}
                     />
                   </div>
                   
                   <div>
                     <Label>Report Format</Label>
-                    <RadioGroup defaultValue="pdf" className="mt-2 flex gap-4" onValueChange={setReportFormat}>
+                    <RadioGroup 
+                      value={reportFormat} 
+                      onValueChange={setReportFormat} 
+                      className="mt-2 flex gap-4"
+                    >
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="pdf" id="pdf" />
                         <Label htmlFor="pdf" className="cursor-pointer">PDF</Label>
@@ -102,7 +278,7 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
                   
                   <div>
                     <Label>Report Template</Label>
-                    <Select defaultValue="detailed" onValueChange={setReportTemplate}>
+                    <Select value={reportTemplate} onValueChange={setReportTemplate}>
                       <SelectTrigger className="mt-2">
                         <SelectValue placeholder="Select template" />
                       </SelectTrigger>
@@ -397,8 +573,15 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
           </Tabs>
         </CardContent>
         <CardFooter className="flex justify-between">
-          <Button variant="outline">Cancel</Button>
-          <Button onClick={generateReport} disabled={isGenerating} className="gap-2">
+          <Button variant="outline" onClick={() => toast({ title: "Operation Cancelled" })}>
+            Cancel
+          </Button>
+          <Button 
+            variant="purple" 
+            onClick={generateReport} 
+            disabled={isGenerating} 
+            className="gap-2"
+          >
             {isGenerating ? (
               <>
                 <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full"></div>
@@ -432,46 +615,33 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="border-b bg-card">
-                    <td className="px-6 py-4 font-medium">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                        <span>Security Assessment Report - {scanResults?.summary?.url || 'Example.com'}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">Oct 15, 2023 09:45 AM</td>
-                    <td className="px-6 py-4">
-                      <Badge>PDF</Badge>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" className="gap-1">
-                          <Download className="h-3 w-3" />
-                          Download
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr className="border-b bg-card">
-                    <td className="px-6 py-4 font-medium">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                        <span>Bug Bounty Report - Critical XSS</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">Oct 10, 2023 02:15 PM</td>
-                    <td className="px-6 py-4">
-                      <Badge>HTML</Badge>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" className="gap-1">
-                          <Download className="h-3 w-3" />
-                          Download
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
+                  {reportHistory.map((report, index) => (
+                    <tr key={index} className="border-b bg-card">
+                      <td className="px-6 py-4 font-medium">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                          <span>{report.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">{report.date}</td>
+                      <td className="px-6 py-4">
+                        <Badge>{report.format}</Badge>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="download" 
+                            size="sm" 
+                            className="gap-1"
+                            onClick={() => downloadReport(report)}
+                          >
+                            <Download className="h-3 w-3" />
+                            Download
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -493,7 +663,13 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
                     <p className="text-xs text-muted-foreground">Optimized for H1 submissions</p>
                   </div>
                 </div>
-                <Button variant="outline" size="sm">Use</Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => useTemplate('HackerOne Template')}
+                >
+                  Use
+                </Button>
               </div>
               
               <div className="rounded-md border p-3 flex items-center justify-between">
@@ -504,7 +680,13 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
                     <p className="text-xs text-muted-foreground">PCI DSS control mappings</p>
                   </div>
                 </div>
-                <Button variant="outline" size="sm">Use</Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => useTemplate('PCI Compliance')}
+                >
+                  Use
+                </Button>
               </div>
               
               <div className="rounded-md border p-3 flex items-center justify-between">
@@ -515,12 +697,24 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
                     <p className="text-xs text-muted-foreground">Last edited: 3 days ago</p>
                   </div>
                 </div>
-                <Button variant="outline" size="sm">Use</Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => useTemplate('My Custom Template')}
+                >
+                  Use
+                </Button>
               </div>
             </div>
           </CardContent>
           <CardFooter>
-            <Button variant="outline" className="w-full">Create Template</Button>
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={createTemplate}
+            >
+              Create Template
+            </Button>
           </CardFooter>
         </Card>
       </div>
