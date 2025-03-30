@@ -43,22 +43,40 @@ const FormField = <
 const useFormField = () => {
   const fieldContext = React.useContext(FormFieldContext)
   const itemContext = React.useContext(FormItemContext)
-  const { getFieldState, formState } = useFormContext()
+  const formContext = useFormContext()
 
   if (!fieldContext) {
     throw new Error("useFormField should be used within <FormField>")
   }
 
+  // Check if formContext exists before destructuring
+  if (!formContext) {
+    // Return a default object with required properties when used outside of a FormProvider
+    return {
+      id: itemContext?.id,
+      name: fieldContext.name,
+      formItemId: itemContext?.id ? `${itemContext.id}-form-item` : undefined,
+      formDescriptionId: itemContext?.id ? `${itemContext.id}-form-item-description` : undefined,
+      formMessageId: itemContext?.id ? `${itemContext.id}-form-item-message` : undefined,
+      error: undefined,
+      isDirty: false,
+      isTouched: false,
+      isValid: false,
+    }
+  }
+
+  // If formContext exists, proceed with the original logic
+  const { getFieldState, formState } = formContext
   const fieldState = getFieldState(fieldContext.name, formState)
   
-  const { id } = itemContext
+  const { id } = itemContext || {}
 
   return {
     id,
     name: fieldContext.name,
-    formItemId: `${id}-form-item`,
-    formDescriptionId: `${id}-form-item-description`,
-    formMessageId: `${id}-form-item-message`,
+    formItemId: id ? `${id}-form-item` : undefined,
+    formDescriptionId: id ? `${id}-form-item-description` : undefined,
+    formMessageId: id ? `${id}-form-item-message` : undefined,
     ...fieldState,
   }
 }
@@ -67,8 +85,8 @@ type FormItemContextValue = {
   id: string
 }
 
-const FormItemContext = React.createContext<FormItemContextValue>(
-  {} as FormItemContextValue
+const FormItemContext = React.createContext<FormItemContextValue | undefined>(
+  undefined
 )
 
 const FormItem = React.forwardRef<
