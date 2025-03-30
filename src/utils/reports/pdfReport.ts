@@ -1,4 +1,3 @@
-
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { Chart, registerables } from 'chart.js';
@@ -17,19 +16,7 @@ export function generatePdfReport(scanResults: ScanResults): jsPDF {
     // Ensure autoTable is available
     if (typeof doc.autoTable !== 'function') {
       console.warn('autoTable function is not available, attempting to add it dynamically');
-      
-      // Try to load autoTable dynamically if it's available in the window object
-      if (window.jspdf && window.jspdf.jsPDF) {
-        const autoTable = window.jspdf.autoTable;
-        if (typeof autoTable === 'function') {
-          doc.autoTable = autoTable;
-        }
-      }
-      
-      // If autoTable is still not available, throw an error
-      if (typeof doc.autoTable !== 'function') {
-        throw new Error('jspdf-autotable is not properly loaded');
-      }
+      throw new Error('jspdf-autotable is not properly loaded');
     }
     
     // Add title

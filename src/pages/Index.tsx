@@ -1,228 +1,211 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/hooks/use-toast";
-import { Shield, FileType, PieChart, AlertTriangle, Bug, FileSearch } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { Shield, Database, Download, FileText, ArrowRight, Bug, BarChart } from "lucide-react";
+import { motion } from "framer-motion";
+import ReportGenerator from "@/components/report";
+import ScanConfigurationForm from "@/components/ScanConfigurationForm";
 import EnhancedScanConfigurationForm from "@/components/EnhancedScanConfigurationForm";
 import ScanResults from "@/components/ScanResults";
-import Dashboard from "@/components/Dashboard";
-import ReportGenerator from "@/components/report";
-import { ScanConfig, ScanResults as ScanResultsType } from "@/utils/scanEngine";
-import { sendScanRequest, checkScanStatus, setupLocalApiEndpoint } from "@/utils/serverApi";
+import { startScan, getScanResults } from "@/utils/scanner/mockScanner";
+import { useToast } from "@/hooks/use-toast";
+import { ScanResults as ScanResultsType } from "@/utils/scanner/types";
+
+// Make sure jspdf-autotable is imported at the application level
+import 'jspdf-autotable';
 
 const Index = () => {
-  const [activeTab, setActiveTab] = useState("dashboard");
-  const [isScanning, setIsScanning] = useState(false);
-  const [scanProgress, setScanProgress] = useState(0);
+  const [activeTab, setActiveTab] = useState("scan");
+  const [scanning, setScanning] = useState(false);
+  const [scanCompleted, setScanCompleted] = useState(false);
   const [scanResults, setScanResults] = useState<ScanResultsType | null>(null);
-  const [scanHistory, setScanHistory] = useState<Array<{id: string, url: string, date: string, results: ScanResultsType}>>([]);
-  const [lastScanConfig, setLastScanConfig] = useState<ScanConfig | undefined>(undefined);
-  const [currentScanId, setCurrentScanId] = useState<string | null>(null);
+  const [advancedMode, setAdvancedMode] = useState(false);
+  const [targetUrl, setTargetUrl] = useState("https://example.com");
+  const [scanOptions, setScanOptions] = useState({
+    crawlDepth: 2,
+    maxPages: 10,
+    excludeUrls: [],
+    scanMode: "passive",
+    scanSpeed: "medium"
+  });
   const { toast } = useToast();
 
-  useEffect(() => {
-    setupLocalApiEndpoint();
-  }, []);
-
-  useEffect(() => {
-    let statusInterval: NodeJS.Timeout | null = null;
-    
-    if (isScanning && currentScanId) {
-      statusInterval = setInterval(async () => {
-        try {
-          const statusResponse = await checkScanStatus(currentScanId);
-          
-          setScanProgress(statusResponse.progress);
-          
-          if (statusResponse.status === 'completed' && statusResponse.results) {
-            clearInterval(statusInterval!);
-            setIsScanning(false);
-            setScanProgress(100);
-            setCurrentScanId(null);
-            
-            const newScanHistory = [{
-              id: statusResponse.results.summary.scanID,
-              url: statusResponse.results.summary.url,
-              date: new Date().toISOString(),
-              results: statusResponse.results
-            }, ...scanHistory];
-            
-            if (newScanHistory.length > 10) {
-              newScanHistory.pop();
-            }
-            
-            setScanHistory(newScanHistory);
-            setScanResults(statusResponse.results);
-            setActiveTab("results");
-            
-            toast({
-              title: "Scan Complete",
-              description: `Found ${statusResponse.results.summary.total} vulnerabilities (${statusResponse.results.summary.critical} critical, ${statusResponse.results.summary.high} high).`,
-            });
-          } else if (statusResponse.status === 'failed') {
-            clearInterval(statusInterval!);
-            setIsScanning(false);
-            setScanProgress(0);
-            setCurrentScanId(null);
-            
-            toast({
-              title: "Scan Failed",
-              description: statusResponse.error || "An unknown error occurred",
-              variant: "destructive",
-            });
-          }
-        } catch (error) {
-          console.error("Error checking scan status:", error);
-        }
-      }, 3000);
-    }
-    
-    return () => {
-      if (statusInterval) {
-        clearInterval(statusInterval);
-      }
-    };
-  }, [isScanning, currentScanId, scanHistory, toast]);
-
-  const startScan = async (config: ScanConfig) => {
-    setIsScanning(true);
-    setScanProgress(0);
-    setLastScanConfig(config);
-    
-    toast({
-      title: "Scan Started",
-      description: "Vulnerability scan request sent to the server. This may take several minutes.",
-    });
+  const handleScanButtonClick = async () => {
+    setScanning(true);
+    setScanCompleted(false);
     
     try {
-      const results = await sendScanRequest(config);
-      
-      setCurrentScanId(results.summary.scanID);
-    } catch (error) {
-      setIsScanning(false);
-      setScanProgress(0);
-      
       toast({
-        title: "Scan Error",
-        description: "An error occurred while starting the scan.",
-        variant: "destructive",
+        title: "Scan Started",
+        description: `Scanning ${targetUrl} in ${scanOptions.scanMode} mode...`,
       });
       
-      console.error("Scan error:", error);
-    }
-  };
-
-  const viewHistoricalScan = (scanId: string) => {
-    const historicalScan = scanHistory.find(scan => scan.id === scanId);
-    if (historicalScan) {
-      setScanResults(historicalScan.results);
-      setActiveTab("results");
+      const scanId = await startScan({
+        url: targetUrl,
+        options: scanOptions
+      });
+      
+      // Simulate scan progress
+      setTimeout(async () => {
+        try {
+          const results = await getScanResults(scanId);
+          setScanResults(results);
+          setScanCompleted(true);
+          
+          toast({
+            title: "Scan Completed",
+            description: `Found ${results.summary.total} vulnerabilities.`,
+          });
+        } catch (error) {
+          console.error(error);
+          toast({
+            variant: "destructive",
+            title: "Scan Failed",
+            description: "An error occurred while retrieving scan results.",
+          });
+        } finally {
+          setScanning(false);
+        }
+      }, 5000);
+    } catch (error) {
+      setScanning(false);
+      console.error(error);
+      toast({
+        variant: "destructive",
+        title: "Scan Failed",
+        description: "An error occurred while starting the scan.",
+      });
     }
   };
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-7xl">
-      <header className="mb-8 text-center">
-        <div className="inline-flex items-center gap-2 mb-2">
-          <Shield className="h-10 w-10 text-primary" />
-          <h1 className="text-4xl font-bold tracking-tight gradient-text">OWASP Vulnerability Scanner</h1>
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex flex-col md:flex-row items-start justify-between mb-8">
+        <div>
+          <h1 className="text-4xl font-bold tracking-tight">OWASP Vulnerability Scanner</h1>
+          <p className="text-lg text-muted-foreground mt-2">
+            Detect and analyze web application security vulnerabilities
+          </p>
         </div>
-        <p className="text-muted-foreground max-w-2xl mx-auto">
-          Advanced web application security testing platform with automated vulnerability detection and comprehensive reporting
-        </p>
-      </header>
+        <div className="flex gap-4 mt-4 md:mt-0">
+          <Button variant="outline" className="flex items-center gap-2">
+            <Database className="h-4 w-4" />
+            <span>Saved Scans</span>
+          </Button>
+          <Button variant="outline" className="flex items-center gap-2">
+            <Download className="h-4 w-4" />
+            <span>Export</span>
+          </Button>
+        </div>
+      </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid grid-cols-4 mb-8">
-          <TabsTrigger value="dashboard" className="flex items-center gap-2">
-            <PieChart className="h-4 w-4" />
-            <span>Dashboard</span>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+        <TabsList className="grid grid-cols-3 w-full max-w-3xl mx-auto">
+          <TabsTrigger value="scan" className="text-base py-3">
+            <Bug className="h-4 w-4 mr-2" />
+            Scan
           </TabsTrigger>
-          <TabsTrigger value="scan" className="flex items-center gap-2">
-            <Bug className="h-4 w-4" />
-            <span>New Scan</span>
+          <TabsTrigger value="results" className="text-base py-3">
+            <Shield className="h-4 w-4 mr-2" />
+            Results
           </TabsTrigger>
-          <TabsTrigger value="results" className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4" />
-            <span>Results</span>
-            {scanResults && (
-              <span className="ml-1.5 w-5 h-5 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-medium">
-                {scanResults.summary.total}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="reports" className="flex items-center gap-2">
-            <FileSearch className="h-4 w-4" />
-            <span>Reports</span>
+          <TabsTrigger value="reports" className="text-base py-3">
+            <FileText className="h-4 w-4 mr-2" />
+            Reports
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="dashboard" className="space-y-6">
-          <Dashboard 
-            scanResults={scanResults} 
-            startNewScan={() => setActiveTab("scan")} 
-            scanHistory={scanHistory}
-            viewHistoricalScan={viewHistoricalScan}
-          />
-        </TabsContent>
-
-        <TabsContent value="scan" className="space-y-6">
-          <EnhancedScanConfigurationForm 
-            onStartScan={startScan} 
-            isScanning={isScanning} 
-            scanProgress={scanProgress}
-            lastScanConfig={lastScanConfig} 
-          />
-        </TabsContent>
-
-        <TabsContent value="results" className="space-y-6">
-          {scanResults ? (
-            <ScanResults results={scanResults} />
-          ) : (
-            <Card className="border-dashed text-center py-12">
-              <CardContent>
-                <div className="flex flex-col items-center gap-2">
-                  <AlertTriangle className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-xl font-medium">No Scan Results</h3>
-                  <p className="text-muted-foreground max-w-md mx-auto mb-4">
-                    You haven't performed any scans yet. Start a new scan to detect vulnerabilities.
-                  </p>
-                  <Button onClick={() => setActiveTab("scan")}>Start New Scan</Button>
+        <TabsContent value="scan" className="space-y-8">
+          <Card>
+            <CardContent className="pt-6">
+              {!advancedMode ? (
+                <ScanConfigurationForm
+                  targetUrl={targetUrl}
+                  setTargetUrl={setTargetUrl}
+                  scanOptions={scanOptions}
+                  setScanOptions={setScanOptions}
+                  onStartScan={handleScanButtonClick}
+                  onAdvancedModeToggle={() => setAdvancedMode(true)}
+                  scanning={scanning}
+                />
+              ) : (
+                <EnhancedScanConfigurationForm
+                  targetUrl={targetUrl}
+                  setTargetUrl={setTargetUrl}
+                  scanOptions={scanOptions}
+                  setScanOptions={setScanOptions}
+                  onStartScan={handleScanButtonClick}
+                  onSimpleModeToggle={() => setAdvancedMode(false)}
+                  scanning={scanning}
+                />
+              )}
+            </CardContent>
+          </Card>
+          
+          {scanning && (
+            <div className="text-center py-10">
+              <div className="flex flex-col items-center justify-center space-y-6">
+                <div className="relative w-20 h-20">
+                  <div className="absolute inset-0 rounded-full border-4 border-purple-200"></div>
+                  <motion.div
+                    className="absolute inset-0 rounded-full border-4 border-t-purple-500 border-r-transparent border-b-transparent border-l-transparent"
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                  ></motion.div>
                 </div>
-              </CardContent>
-            </Card>
+                <div className="text-center">
+                  <h3 className="text-xl font-semibold mb-1">Scanning {targetUrl}</h3>
+                  <p className="text-muted-foreground">
+                    This may take a few minutes depending on the target and scan depth
+                  </p>
+                </div>
+              </div>
+            </div>
           )}
         </TabsContent>
 
-        <TabsContent value="reports" className="space-y-6">
-          {scanResults ? (
+        <TabsContent value="results" className="space-y-8">
+          {scanCompleted && scanResults ? (
+            <ScanResults results={scanResults} />
+          ) : (
+            <div className="text-center py-12">
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-muted mb-6">
+                <BarChart className="h-10 w-10 text-muted-foreground" />
+              </div>
+              <h3 className="text-2xl font-semibold mb-2">No Scan Results Available</h3>
+              <p className="text-muted-foreground text-lg mb-6 max-w-md mx-auto">
+                Complete a vulnerability scan first to view detailed results and analysis.
+              </p>
+              <Button onClick={() => setActiveTab("scan")} variant="purple" className="gap-2">
+                <Bug className="mr-2 h-4 w-4" />
+                Start Scan
+              </Button>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="reports" className="space-y-8">
+          {scanCompleted && scanResults ? (
             <ReportGenerator scanResults={scanResults} />
           ) : (
-            <Card className="border-dashed text-center py-12">
-              <CardContent>
-                <div className="flex flex-col items-center gap-2">
-                  <FileType className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-xl font-medium">No Reports Available</h3>
-                  <p className="text-muted-foreground max-w-md mx-auto mb-4">
-                    Complete a vulnerability scan first to generate detailed PDF reports.
-                  </p>
-                  <Button onClick={() => setActiveTab("scan")} variant="purple">
-                    <Bug className="mr-2 h-4 w-4" />
-                    Start New Scan
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="text-center py-12">
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-muted mb-6">
+                <FileText className="h-10 w-10 text-muted-foreground" />
+              </div>
+              <h3 className="text-2xl font-semibold mb-2">No Reports Available</h3>
+              <p className="text-muted-foreground text-lg mb-6 max-w-md mx-auto">
+                Complete a vulnerability scan first to generate detailed PDF reports.
+              </p>
+              <Button onClick={() => setActiveTab("scan")} variant="purple">
+                <Bug className="mr-2 h-4 w-4" />
+                Start New Scan
+              </Button>
+            </div>
           )}
         </TabsContent>
       </Tabs>
-
-      <footer className="mt-16 text-center text-sm text-muted-foreground">
-        <p>© {new Date().getFullYear()} OWASP Vulnerability Scanner</p>
-        <p className="mt-2">Running in server-side scanning mode</p>
-      </footer>
     </div>
   );
 };

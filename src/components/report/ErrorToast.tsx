@@ -14,10 +14,10 @@ const ErrorToast: React.FC<ErrorToastProps> = ({ showErrorToast }) => {
       <div className="flex items-start gap-3">
         <AlertCircle className="h-5 w-5 mt-0.5" />
         <div>
-          <h3 className="font-medium mb-1">Download Failed</h3>
+          <h3 className="font-medium mb-1">Report Generation Failed</h3>
           <p className="text-sm">
-            There was an error generating the PDF report. This may be due to issues with jsPDF AutoTable or missing screenshots. 
-            Try a different format or check the console for more details.
+            There was an error generating the PDF report. The jspdf-autotable plugin is not properly loaded.
+            Try downloading in HTML or CSV format instead.
           </p>
         </div>
       </div>

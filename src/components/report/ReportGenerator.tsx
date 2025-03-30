@@ -12,7 +12,7 @@ import { generatePdfReport, generateHtmlReport, generateCsvReport } from '@/util
 import { Button } from "@/components/ui/button";
 import { Download, FileText, FileType } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { ScanResults } from "@/utils/reports/types";
+import { ScanResults } from '@/utils/reports/types';
 import ErrorToast from './ErrorToast';
 
 interface ReportGeneratorProps {
@@ -34,33 +34,55 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
     
     try {
       if (reportType === 'pdf') {
-        const pdfBlob = await generatePdfReport(scanResults);
-        
-        // Convert jsPDF output to Blob
-        const pdfBlobData = new Blob([pdfBlob.output('blob')], { type: 'application/pdf' });
-        const pdfUrl = URL.createObjectURL(pdfBlobData);
-        setGeneratedPdfUrl(pdfUrl);
-        
-        // Auto download
-        const link = document.createElement('a');
-        link.href = pdfUrl;
-        link.download = `${reportTitle.replace(/\s+/g, '_')}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        toast({
-          title: "PDF Report Generated",
-          description: "Your PDF report has been generated and downloaded."
-        });
+        try {
+          const pdfDoc = await generatePdfReport(scanResults);
+          
+          // Convert jsPDF output to Blob properly
+          const pdfBlobData = new Blob([pdfDoc.output('blob')], { type: 'application/pdf' });
+          const pdfUrl = URL.createObjectURL(pdfBlobData);
+          setGeneratedPdfUrl(pdfUrl);
+          
+          // Auto download
+          const link = document.createElement('a');
+          link.href = pdfUrl;
+          link.download = `${reportTitle.replace(/\s+/g, '_')}.pdf`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          toast({
+            title: "PDF Report Generated",
+            description: "Your PDF report has been generated and downloaded."
+          });
+        } catch (error) {
+          console.error("Error generating PDF report:", error);
+          toast({
+            variant: "destructive",
+            title: "Failed to generate PDF report",
+            description: "jspdf-autotable is not properly loaded. Try a different format instead.",
+            action: <ErrorToast showErrorToast={true} />,
+          });
+          // Fall back to HTML report
+          handleGenerateReport('html');
+        }
       } else if (reportType === 'html') {
         const htmlContent = generateHtmlReport(scanResults);
         
         setGeneratedHtmlContent(htmlContent);
         
+        // Auto download HTML
+        const blob = new Blob([htmlContent], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${reportTitle.replace(/\s+/g, '_')}.html`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
         toast({
           title: "HTML Report Generated",
-          description: "Your HTML report has been generated and is ready for preview."
+          description: "Your HTML report has been generated and downloaded."
         });
       } else if (reportType === 'csv') {
         const csvContent = generateCsvReport(scanResults);

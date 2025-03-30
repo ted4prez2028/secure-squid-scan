@@ -2,13 +2,14 @@
 import { generatePdfReport } from './pdfReport';
 import { generateHtmlReport } from './htmlReport';
 import { generateCsvReport } from './csvReport';
+import { ensureAutoTableLoaded } from './ensureAutoTable';
 
-// Re-export functions
 export {
   generatePdfReport,
   generateHtmlReport,
-  generateCsvReport
+  generateCsvReport,
+  ensureAutoTableLoaded
 };
 
-// Re-export types using 'export type' to fix the 'isolatedModules' error
-export type { ScanResults, Vulnerability } from './types';
+// Re-export types for convenience
+export * from './types';
