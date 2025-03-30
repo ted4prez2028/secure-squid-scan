@@ -4,7 +4,10 @@ import { ScanResults as ScanResultsType, Vulnerability as VulnerabilityType } fr
 // Define type augmentation for jsPDF with AutoTable
 declare global {
   interface Window {
-    jspdf: any;
+    jspdf: {
+      jsPDF: any;
+      autoTable: any;
+    };
   }
 }
 
