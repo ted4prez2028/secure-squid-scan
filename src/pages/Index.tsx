@@ -1,20 +1,16 @@
 
-import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, FileType, PieChart, AlertTriangle, Zap, Book, Download, ServerCog, Bug, Database, FileSearch } from "lucide-react";
+import { Shield, FileType, PieChart, AlertTriangle, Bug, FileSearch } from "lucide-react";
 import EnhancedScanConfigurationForm from "@/components/EnhancedScanConfigurationForm";
 import ScanResults from "@/components/ScanResults";
 import Dashboard from "@/components/Dashboard";
 import ReportGenerator from "@/components/ReportGenerator";
-import { performScan, ScanConfig, ScanResults as ScanResultsType } from "@/utils/scanEngine";
+import { ScanConfig, ScanResults as ScanResultsType } from "@/utils/scanEngine";
+import { sendScanRequest, checkScanStatus } from "@/utils/serverApi";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -23,92 +19,99 @@ const Index = () => {
   const [scanResults, setScanResults] = useState<ScanResultsType | null>(null);
   const [scanHistory, setScanHistory] = useState<Array<{id: string, url: string, date: string, results: ScanResultsType}>>([]);
   const [lastScanConfig, setLastScanConfig] = useState<ScanConfig | undefined>(undefined);
+  const [currentScanId, setCurrentScanId] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Function to monitor console logs for progress updates
-  const monitorProgress = () => {
-    // Save the original console.log
-    const originalConsoleLog = console.log;
+  // Function to check the status of an ongoing scan
+  useEffect(() => {
+    let statusInterval: NodeJS.Timeout | null = null;
     
-    // Override console.log to catch progress updates
-    console.log = function(message: any, ...args: any[]) {
-      // Pass through to the original console.log
-      originalConsoleLog.apply(console, [message, ...args]);
-      
-      // Check if this is a progress update
-      if (typeof message === 'string' && message.includes('Scan progress:')) {
+    if (isScanning && currentScanId) {
+      statusInterval = setInterval(async () => {
         try {
-          const progressMatch = message.match(/Scan progress: (\d+)%/);
-          if (progressMatch && progressMatch[1]) {
-            const progress = parseInt(progressMatch[1]);
-            setScanProgress(progress);
+          const statusResponse = await checkScanStatus(currentScanId);
+          
+          setScanProgress(statusResponse.progress);
+          
+          if (statusResponse.status === 'completed' && statusResponse.results) {
+            clearInterval(statusInterval!);
+            setIsScanning(false);
+            setScanProgress(100);
+            setCurrentScanId(null);
+            
+            // Add to scan history
+            const newScanHistory = [{
+              id: statusResponse.results.summary.scanID,
+              url: statusResponse.results.summary.url,
+              date: new Date().toISOString(),
+              results: statusResponse.results
+            }, ...scanHistory];
+            
+            // Limit history to 10 items
+            if (newScanHistory.length > 10) {
+              newScanHistory.pop();
+            }
+            
+            setScanHistory(newScanHistory);
+            setScanResults(statusResponse.results);
+            setActiveTab("results");
+            
+            toast({
+              title: "Scan Complete",
+              description: `Found ${statusResponse.results.summary.total} vulnerabilities (${statusResponse.results.summary.critical} critical, ${statusResponse.results.summary.high} high).`,
+            });
+          } else if (statusResponse.status === 'failed') {
+            clearInterval(statusInterval!);
+            setIsScanning(false);
+            setScanProgress(0);
+            setCurrentScanId(null);
+            
+            toast({
+              title: "Scan Failed",
+              description: statusResponse.error || "An unknown error occurred",
+              variant: "destructive",
+            });
           }
-        } catch (e) {
-          // Ignore parsing errors
+        } catch (error) {
+          console.error("Error checking scan status:", error);
         }
-      }
-    };
+      }, 3000); // Check every 3 seconds
+    }
     
     return () => {
-      // Restore the original console.log when done
-      console.log = originalConsoleLog;
+      if (statusInterval) {
+        clearInterval(statusInterval);
+      }
     };
-  };
+  }, [isScanning, currentScanId, scanHistory, toast]);
 
   const startScan = async (config: ScanConfig) => {
     setIsScanning(true);
     setScanProgress(0);
     setLastScanConfig(config);
     
-    // Set up progress monitoring
-    const cleanupMonitor = monitorProgress();
-    
     toast({
       title: "Scan Started",
-      description: "Vulnerability scan has been initiated. This may take a few minutes.",
+      description: "Vulnerability scan request sent to the server. This may take several minutes.",
     });
     
     try {
-      // Use the scan engine to perform the scan
-      const results = await performScan(config);
+      // Send the scan request to your server
+      const results = await sendScanRequest(config);
       
-      // Save to scan history
-      const newScanHistory = [{
-        id: results.summary.scanID,
-        url: config.url,
-        date: new Date().toISOString(),
-        results: results
-      }, ...scanHistory];
-      
-      // Limit history to the last 10 scans
-      if (newScanHistory.length > 10) {
-        newScanHistory.pop();
-      }
-      
-      setScanHistory(newScanHistory);
-      setScanResults(results);
-      setIsScanning(false);
-      setScanProgress(100);
-      setActiveTab("results");
-      
-      toast({
-        title: "Scan Complete",
-        description: `Found ${results.summary.total} vulnerabilities (${results.summary.critical} critical, ${results.summary.high} high).`,
-      });
+      // Set the current scan ID to monitor progress
+      setCurrentScanId(results.summary.scanID);
     } catch (error) {
       setIsScanning(false);
       setScanProgress(0);
       
       toast({
         title: "Scan Error",
-        description: "An error occurred during the vulnerability scan.",
+        description: "An error occurred while starting the scan.",
         variant: "destructive",
       });
       
       console.error("Scan error:", error);
-    } finally {
-      // Clean up the console.log override
-      cleanupMonitor();
     }
   };
 
@@ -124,7 +127,7 @@ const Index = () => {
     <div className="container mx-auto py-8 px-4 max-w-7xl">
       <header className="mb-8 text-center">
         <div className="inline-flex items-center gap-2 mb-2">
-          <Shield className="h-10 w-10 text-scanner-primary" />
+          <Shield className="h-10 w-10 text-primary" />
           <h1 className="text-4xl font-bold tracking-tight gradient-text">OWASP Vulnerability Scanner</h1>
         </div>
         <p className="text-muted-foreground max-w-2xl mx-auto">
@@ -146,7 +149,7 @@ const Index = () => {
             <AlertTriangle className="h-4 w-4" />
             <span>Results</span>
             {scanResults && (
-              <span className="ml-1.5 w-5 h-5 rounded-full bg-scanner-primary/20 text-scanner-primary flex items-center justify-center text-xs font-medium">
+              <span className="ml-1.5 w-5 h-5 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-medium">
                 {scanResults.summary.total}
               </span>
             )}
@@ -215,11 +218,8 @@ const Index = () => {
       </Tabs>
 
       <footer className="mt-16 text-center text-sm text-muted-foreground">
-        <div className="flex items-center justify-center gap-2 mb-2">
-          <Book className="h-4 w-4" />
-          <span>Based on OWASP Top 10 vulnerability testing methodology</span>
-        </div>
         <p>© {new Date().getFullYear()} OWASP Vulnerability Scanner</p>
+        <p className="mt-2">Running in server-side scanning mode</p>
       </footer>
     </div>
   );

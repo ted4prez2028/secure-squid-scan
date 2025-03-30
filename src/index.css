@@ -45,8 +45,6 @@
     --sidebar-ring: 217.2 91.2% 59.8%;
 
     /* Scanner specific colors */
-    --scanner-primary: 265 80% 75%;
-    --scanner-secondary: 240 6% 26%;
     --scanner-critical: 0 84% 60%;
     --scanner-high: 27 96% 61%;
     --scanner-medium: 40 96% 62%;
@@ -133,8 +131,8 @@
 }
 
 .report-template.selected {
-  border-color: theme('colors.scanner.primary');
-  box-shadow: 0 0 0 2px theme('colors.scanner.primary');
+  border-color: theme('colors.primary.DEFAULT');
+  box-shadow: 0 0 0 2px theme('colors.primary.DEFAULT');
 }
 
 /* Network graph animation */
@@ -143,7 +141,7 @@
 }
 
 .network-node:hover {
-  fill: theme('colors.scanner.primary');
+  fill: theme('colors.primary.DEFAULT');
 }
 
 .network-line {
