@@ -110,16 +110,3 @@ export class MockScanner {
     return ScanAgent.createMockResults(mockConfig);
   }
 }
-
-// Export the functions directly for easier importing
-export const startScan = (config: ScanConfig): string => {
-  return MockScanner.startScan(config);
-};
-
-export const checkScanStatus = (scanId: string) => {
-  return MockScanner.checkScanStatus(scanId);
-};
-
-export const getScanResults = (scanId: string): ScanResults => {
-  return MockScanner.getScanResults(scanId);
-};

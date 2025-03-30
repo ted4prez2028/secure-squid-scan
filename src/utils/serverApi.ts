@@ -9,7 +9,7 @@ import { getRandomPayloads } from './payloadExamples';
 /**
  * Send a scan request to start a real scan
  */
-export async function sendScanRequest(config: ScanConfig, customPayloads?: Map<string, string[]>): Promise<ScanResults> {
+export async function startScan(config: ScanConfig, customPayloads?: Map<string, string[]>): Promise<string> {
   if (!USE_MOCK_DATA) {
     try {
       console.log("Starting a real scan with configuration:", config);
@@ -18,35 +18,7 @@ export async function sendScanRequest(config: ScanConfig, customPayloads?: Map<s
       const scanner = RealScanner.getInstance();
       const scanId = scanner.startScan(config, customPayloads);
       
-      // Return initial results (the scan will continue in the background)
-      return {
-        summary: {
-          scanID: scanId,
-          url: config.url,
-          startTime: new Date().toISOString(),
-          endTime: '',
-          duration: 0,
-          total: 0,
-          critical: 0,
-          high: 0,
-          medium: 0,
-          low: 0,
-          info: 0,
-          testedURLs: 0,
-          testedParameters: 0,
-          engineVersion: '1.0.0',
-          scanMode: config.scanMode,
-          scanTime: new Date().toISOString(),
-          requestsSent: 0,
-          numRequests: 0,
-          pagesScanned: 0,
-          testedPages: 0,
-          timestamp: Date.now()
-        },
-        vulnerabilities: [],
-        testedURLs: [],
-        scanConfig: config
-      };
+      return scanId;
     } catch (error) {
       console.error('Error starting real scan:', error);
       throw error;

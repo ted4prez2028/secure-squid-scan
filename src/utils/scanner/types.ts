@@ -17,6 +17,7 @@ export interface ScanStatusResponse {
 
 // Re-export the ScanResults type from scanEngine
 export type ScanResults = ScanResultsBase;
+export { ScanResultsBase };
 
 // Interface for custom payload handling
 export interface ScanData {

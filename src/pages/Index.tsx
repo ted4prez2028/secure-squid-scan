@@ -10,9 +10,9 @@ import ReportGenerator from "@/components/report";
 import ScanConfigurationForm from "@/components/ScanConfigurationForm";
 import EnhancedScanConfigurationForm from "@/components/EnhancedScanConfigurationForm";
 import ScanResults from "@/components/ScanResults";
-import { startScan, getScanResults } from "@/utils/scanner/mockScanner";
+import { startScan, checkScanStatus, getScanResults } from "@/utils/serverApi";
 import { useToast } from "@/hooks/use-toast";
-import { ScanResults as ScanResultsType } from "@/utils/scanner/types";
+import { ScanResults as ScanResultsType, ScanConfig } from "@/utils/scanEngine";
 
 // Make sure jspdf-autotable is imported at the application level
 import 'jspdf-autotable';
@@ -28,7 +28,7 @@ const Index = () => {
     crawlDepth: 2,
     maxPages: 10,
     excludeUrls: [],
-    scanMode: "passive",
+    scanMode: "standard" as "quick" | "standard" | "thorough", // Type assertion
     scanSpeed: "medium"
   });
   const { toast } = useToast();
@@ -44,7 +44,7 @@ const Index = () => {
       });
       
       // Create a scan config object from the form values
-      const scanConfig = {
+      const scanConfig: ScanConfig = {
         url: targetUrl,
         scanMode: scanOptions.scanMode,
         authRequired: false,
@@ -60,12 +60,13 @@ const Index = () => {
         maxDepth: scanOptions.crawlDepth
       };
       
-      const scanId = startScan(scanConfig);
+      // Start the scan and get the scan ID
+      const scanId = await startScan(scanConfig);
       
       // Simulate scan progress
       setTimeout(async () => {
         try {
-          const results = getScanResults(scanId);
+          const results = await getScanResults(scanId);
           setScanResults(results);
           setScanCompleted(true);
           
@@ -93,6 +94,18 @@ const Index = () => {
         description: "An error occurred while starting the scan.",
       });
     }
+  };
+
+  // Handle configuration changes from form
+  const handleConfigChange = (config: any) => {
+    // Update the scan options based on the configuration form
+    setScanOptions({
+      ...scanOptions,
+      crawlDepth: config.maxDepth || scanOptions.crawlDepth,
+      scanMode: config.scanMode || scanOptions.scanMode
+    });
+    
+    setTargetUrl(config.url || targetUrl);
   };
 
   return (
