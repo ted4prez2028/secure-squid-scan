@@ -1,3 +1,4 @@
+
 import { ScanResults } from './scanEngine';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
@@ -6,6 +7,16 @@ import { Vulnerability } from './scanEngine';
 
 // Register Chart.js components
 Chart.register(...registerables);
+
+// Define type augmentation for jsPDF with AutoTable
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+    lastAutoTable?: {
+      finalY?: number;
+    };
+  }
+}
 
 // Helper function to create a severity badge
 function getSeverityBadge(severity: string): { text: string, color: string } {
@@ -51,7 +62,7 @@ function formatDuration(milliseconds: number): string {
 
 // Generate a PDF report from scan results
 export function generatePdfReport(scanResults: ScanResults): jsPDF {
-  const doc = new jsPDF() as jsPDF & { autoTable: Function };
+  const doc = new jsPDF();
   
   // Add title
   doc.setFontSize(22);
@@ -108,7 +119,7 @@ export function generatePdfReport(scanResults: ScanResults): jsPDF {
   doc.setFontSize(16);
   doc.setTextColor(33, 33, 33);
   
-  const lastTableY = (doc as any).lastAutoTable?.finalY || 100;
+  const lastTableY = doc.lastAutoTable?.finalY || 100;
   doc.text('Vulnerability Summary', 20, lastTableY + 15);
   
   // Create vulnerability summary table
@@ -195,7 +206,7 @@ export function generatePdfReport(scanResults: ScanResults): jsPDF {
   });
   
   // Add individual vulnerability details with screenshots
-  let currentY = (doc as any).lastAutoTable.finalY + 15;
+  let currentY = doc.lastAutoTable.finalY + 15;
   
   scanResults.vulnerabilities.forEach((vuln: Vulnerability, index: number) => {
     // Check if we need a new page
@@ -268,7 +279,7 @@ export function generatePdfReport(scanResults: ScanResults): jsPDF {
       }
     });
     
-    currentY = (doc as any).lastAutoTable.finalY + 5;
+    currentY = doc.lastAutoTable.finalY + 5;
     
     // Remediation
     if (vuln.remediation) {

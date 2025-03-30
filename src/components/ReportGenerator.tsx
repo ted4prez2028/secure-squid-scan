@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,7 +36,6 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
     appendices: true,
   });
 
-  // Initialize report history with sample data
   const [reportHistory, setReportHistory] = useState([
     {
       name: `Security Assessment Report - ${scanResults?.summary?.url || 'Example.com'}`,
@@ -63,7 +61,6 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
     try {
       let reportData = null;
       
-      // Generate the report based on the selected format
       switch (reportFormat.toLowerCase()) {
         case 'pdf':
           reportData = generatePdfReport(scanResults);
@@ -72,13 +69,12 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
           reportData = generateHtmlReport(scanResults);
           break;
         case 'markdown':
-          reportData = generateCsvReport(scanResults); // Using CSV as a placeholder for Markdown
+          reportData = generateCsvReport(scanResults);
           break;
         default:
           reportData = generatePdfReport(scanResults);
       }
       
-      // Add to report history
       const newReport = {
         name: reportTitle,
         date: new Date().toLocaleString(),
@@ -111,29 +107,24 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
   const downloadReport = (report: any) => {
     try {
       if (!report.data) {
-        // If this is a historical report with no data, generate it now
         let reportData = null;
         
         switch (report.format.toLowerCase()) {
           case 'pdf':
             reportData = generatePdfReport(scanResults);
-            // For PDF, we use the output method to save the file
             reportData.save(`${report.name.replace(/\s+/g, '_')}.pdf`);
             break;
           case 'html':
             reportData = generateHtmlReport(scanResults);
-            // For HTML, create a Blob and download it
             downloadBlob(reportData, `${report.name.replace(/\s+/g, '_')}.html`, 'text/html');
             break;
           case 'csv':
           case 'markdown':
             reportData = generateCsvReport(scanResults);
-            // For CSV/Markdown, create a Blob and download it
             downloadBlob(reportData, `${report.name.replace(/\s+/g, '_')}.csv`, 'text/csv');
             break;
         }
       } else {
-        // Handle already generated reports
         if (report.format.toLowerCase() === 'pdf' && typeof report.data.save === 'function') {
           report.data.save(`${report.name.replace(/\s+/g, '_')}.pdf`);
         } else {
@@ -156,7 +147,6 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
         variant: "destructive",
       });
       
-      // Show error toast that stays visible longer
       setShowErrorToast(true);
       setTimeout(() => setShowErrorToast(false), 5000);
     }
@@ -175,12 +165,10 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
   };
 
   const useTemplate = (templateName: string) => {
-    // Set appropriate configuration based on the template
     switch (templateName) {
       case 'HackerOne Template':
         setReportTemplate('bugbounty');
         setActiveTab('standard');
-        // Configure sections for H1 submissions
         setSections({
           ...sections,
           executiveSummary: true,
@@ -194,7 +182,6 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
       case 'PCI Compliance':
         setReportTemplate('compliance');
         setActiveTab('standard');
-        // Configure sections for compliance reports
         setSections({
           ...sections,
           executiveSummary: true,
@@ -210,7 +197,6 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
         setActiveTab('standard');
         break;
       default:
-        // Default case
         break;
     }
     
@@ -227,7 +213,6 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
     });
   };
 
-  // Helper to render screenshot placeholders for UI preview
   const renderScreenshotPlaceholder = () => {
     if (!scanResults?.vulnerabilities || scanResults.vulnerabilities.length === 0) {
       return (
@@ -237,7 +222,6 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
       );
     }
 
-    // Check for screenshots in vulnerabilities
     const hasScreenshots = scanResults.vulnerabilities.some(v => v.screenshot);
     
     if (!hasScreenshots) {
@@ -645,7 +629,6 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
         </CardFooter>
       </Card>
       
-      {/* Error toast for download failures */}
       {showErrorToast && (
         <div className="fixed bottom-4 right-4 bg-destructive text-destructive-foreground p-4 rounded-md shadow-lg z-50 max-w-md animate-in slide-in-from-right-10 fade-in-20">
           <div className="flex items-start gap-3">
@@ -787,4 +770,3 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
 };
 
 export default ReportGenerator;
-
