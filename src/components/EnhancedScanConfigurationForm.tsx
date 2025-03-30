@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -30,7 +31,7 @@ import {
   Code,
   ServerCog,
   Search,
-  FileSearch,
+  FileType,
   ServerCrash
 } from "lucide-react";
 import { ScanConfig } from "@/utils/scanEngine";
@@ -98,11 +99,38 @@ const EnhancedScanConfigurationForm: React.FC<EnhancedScanConfigurationFormProps
     respectRobotsTxt: true,
     scanScope: "host-only",
     bruteforceDepth: 0,
+    username: "",
+    password: "",
+    customHeaders: "",
+    excludeUrls: "",
   };
 
   const form = useForm<ScanFormValues>({
     resolver: zodResolver(scanFormSchema),
-    defaultValues: lastScanConfig || defaultValues,
+    defaultValues: lastScanConfig ? {
+      url: lastScanConfig.url || "",
+      scanMode: lastScanConfig.scanMode || "standard",
+      authRequired: lastScanConfig.authRequired || false,
+      username: lastScanConfig.username || "",
+      password: lastScanConfig.password || "",
+      xssTests: lastScanConfig.xssTests || true,
+      sqlInjectionTests: lastScanConfig.sqlInjectionTests || true,
+      csrfTests: lastScanConfig.csrfTests || true,
+      headerTests: lastScanConfig.headerTests || true,
+      fileUploadTests: lastScanConfig.fileUploadTests || true,
+      threadCount: lastScanConfig.threadCount || 4,
+      captureScreenshots: lastScanConfig.captureScreenshots || true,
+      recordVideos: lastScanConfig.recordVideos || false,
+      aiAnalysis: lastScanConfig.aiAnalysis || true,
+      maxDepth: lastScanConfig.maxDepth || 3,
+      followRedirects: true,
+      cookieJar: true,
+      respectRobotsTxt: true,
+      scanScope: "host-only",
+      bruteforceDepth: 0,
+      customHeaders: "",
+      excludeUrls: "",
+    } : defaultValues,
   });
 
   const onSubmit = (data: ScanFormValues) => {

@@ -1,189 +1,375 @@
 
-import { ScanResults, Vulnerability } from './scanEngine';
+// Import necessary types
+import { ScanResults, Vulnerability, ScanSummary } from './scanEngine';
 
-// This is a utility that would be used with a PDF generation library
-// Since we can't directly generate PDFs in the browser, we'll simulate the structure
-
-export interface ReportOptions {
-  includeScreenshots: boolean;
-  includeRemediation: boolean;
-  includeCwe: boolean;
-  includeReferences: boolean;
-  companyName?: string;
-  reportTitle?: string;
-  includeLogo?: boolean;
-  severityFilter: ('critical' | 'high' | 'medium' | 'low' | 'info')[];
-}
-
-export interface ReportSection {
-  title: string;
-  content: string;
-  level: number;
-}
-
-export interface ReportData {
-  title: string;
-  date: string;
-  targetUrl: string;
-  summary: {
-    totalVulnerabilities: number;
-    criticalCount: number;
-    highCount: number;
-    mediumCount: number;
-    lowCount: number;
-    infoCount: number;
-    scanDuration: string;
-  };
-  sections: ReportSection[];
-  vulnerabilities: ReportVulnerability[];
-}
-
-export interface ReportVulnerability {
-  id: string;
-  title: string;
-  type: string;
-  severity: string;
-  description: string;
-  location: string;
-  evidence: string;
-  remediation?: string;
-  cwe?: string;
-  references?: { title: string; url: string }[];
-  screenshot?: string;
-}
-
-export function generateReportData(scanResults: ScanResults, options: ReportOptions): ReportData {
-  // Filter vulnerabilities by severity
-  const filteredVulns = scanResults.vulnerabilities.filter(
-    vuln => options.severityFilter.includes(vuln.severity)
-  );
-  
-  // Create report sections
-  const sections: ReportSection[] = [
-    {
-      title: "Executive Summary",
-      content: `This security assessment identified ${scanResults.summary.total} vulnerabilities in the target application at ${scanResults.summary.url}. The scan was conducted on ${new Date(scanResults.summary.startTime).toLocaleString()} and took ${scanResults.summary.scanTime || (scanResults.summary.duration/1000 + " seconds")} to complete.`,
-      level: 1
-    },
-    {
-      title: "Scope",
-      content: `The scope of this security assessment included automated scanning of the web application at ${scanResults.summary.url} with ${scanResults.summary.numRequests || scanResults.summary.requestsSent || "multiple"} HTTP requests made to ${scanResults.summary.testedPages || scanResults.summary.pagesScanned || "various"} pages.`,
-      level: 1
-    },
-    {
-      title: "Methodology",
-      content: "The assessment used the OWASP Top 10 methodology to identify common web application security vulnerabilities. The scan included automated testing for injection flaws, broken authentication, sensitive data exposure, XML External Entities (XXE), broken access control, security misconfiguration, cross-site scripting (XSS), insecure deserialization, using components with known vulnerabilities, and insufficient logging & monitoring.",
-      level: 1
-    },
-    {
-      title: "Findings Summary",
-      content: `The assessment revealed ${scanResults.summary.critical} critical, ${scanResults.summary.high} high, ${scanResults.summary.medium} medium, and ${scanResults.summary.low} low severity issues.`,
-      level: 1
-    }
-  ];
-  
-  // Add remediation summary section if included
-  if (options.includeRemediation) {
-    sections.push({
-      title: "Remediation Summary",
-      content: "The vulnerabilities identified require attention with priority given to Critical and High severity issues. Implement the specific recommendations provided for each finding in the Detailed Findings section.",
-      level: 1
-    });
+// Generate a detailed HTML report from scan results
+export function generateHtmlReport(results: ScanResults): string {
+  if (!results || !results.summary || !results.vulnerabilities) {
+    return '<div class="error">Invalid scan results data</div>';
   }
   
-  // Transform vulnerabilities for the report
-  const vulnerabilities: ReportVulnerability[] = filteredVulns.map((vuln, index) => {
-    const reportVuln: ReportVulnerability = {
-      id: vuln.id || String(index + 1),
-      title: `${vuln.type || vuln.title.split(' ')[0]} in ${vuln.parameter || 'application'}`,
-      type: vuln.type || vuln.title.split(' ')[0],
-      severity: vuln.severity,
-      description: vuln.description,
-      location: `${vuln.url || vuln.location} ${vuln.parameter ? `(Parameter: ${vuln.parameter})` : ''}`,
-      evidence: vuln.evidence,
-    };
-    
-    if (options.includeRemediation) {
-      reportVuln.remediation = vuln.remediation;
-    }
-    
-    if (options.includeCwe && vuln.cweid) {
-      reportVuln.cwe = vuln.cweid;
-    }
-    
-    if (options.includeReferences && vuln.owasp) {
-      reportVuln.references = [{
-        title: "OWASP " + vuln.owasp, 
-        url: `https://owasp.org/Top10/${vuln.owasp?.split(':')[0].replace('A', 'A0')}/`
-      }];
-    }
-    
-    return reportVuln;
-  });
+  const { summary, vulnerabilities } = results;
   
-  // Create the report data
-  const reportData: ReportData = {
-    title: options.reportTitle || `Web Application Security Assessment - ${scanResults.summary.url}`,
-    date: new Date().toLocaleDateString(),
-    targetUrl: scanResults.summary.url,
-    summary: {
-      totalVulnerabilities: scanResults.summary.total,
-      criticalCount: scanResults.summary.critical,
-      highCount: scanResults.summary.high,
-      mediumCount: scanResults.summary.medium,
-      lowCount: scanResults.summary.low,
-      infoCount: scanResults.summary.info,
-      scanDuration: scanResults.summary.scanTime || (scanResults.summary.duration/1000 + " seconds")
-    },
-    sections,
-    vulnerabilities
-  };
-  
-  return reportData;
+  // Generate HTML for the report
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Security Scan Report: ${summary.url}</title>
+        <style>
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                line-height: 1.6;
+                color: #333;
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 20px;
+            }
+            .report-header {
+                text-align: center;
+                margin-bottom: 30px;
+            }
+            .logo {
+                max-width: 200px;
+                margin-bottom: 20px;
+            }
+            .title {
+                font-size: 28px;
+                font-weight: 600;
+                margin-bottom: 5px;
+            }
+            .subtitle {
+                font-size: 18px;
+                color: #666;
+            }
+            .summary-box {
+                background-color: #f8f9fa;
+                border-radius: 8px;
+                padding: 20px;
+                margin-bottom: 30px;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            }
+            .summary-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+                gap: 15px;
+            }
+            .summary-item {
+                padding: 10px;
+            }
+            .summary-item h3 {
+                margin: 0 0 5px 0;
+                font-size: 14px;
+                color: #666;
+            }
+            .summary-item p {
+                margin: 0;
+                font-size: 22px;
+                font-weight: 600;
+            }
+            .severity-chart {
+                width: 100%;
+                height: 200px;
+                background: #f1f1f1;
+                border-radius: 8px;
+                margin-bottom: 30px;
+            }
+            .severity-distribution {
+                display: flex;
+                margin-bottom: 20px;
+            }
+            .severity-bar {
+                height: 30px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-weight: bold;
+            }
+            .critical { background-color: #d9534f; }
+            .high { background-color: #f0ad4e; }
+            .medium { background-color: #5bc0de; }
+            .low { background-color: #5cb85c; }
+            .info { background-color: #777; }
+            .findings {
+                margin-bottom: 30px;
+            }
+            .finding {
+                background: white;
+                border-radius: 8px;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                margin-bottom: 20px;
+                overflow: hidden;
+            }
+            .finding-header {
+                padding: 15px 20px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .finding-title {
+                font-size: 18px;
+                font-weight: 600;
+                margin: 0;
+            }
+            .finding-severity {
+                padding: 4px 12px;
+                border-radius: 20px;
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            .finding-body {
+                padding: 0 20px 20px;
+            }
+            .finding-section {
+                margin-bottom: 15px;
+            }
+            .finding-section-title {
+                font-size: 14px;
+                font-weight: 600;
+                margin: 0 0 5px 0;
+                color: #666;
+            }
+            .finding-section-content {
+                font-size: 15px;
+                margin: 0;
+                line-height: 1.5;
+            }
+            .code-block {
+                background: #f8f9fa;
+                border-radius: 4px;
+                padding: 10px 15px;
+                font-family: monospace;
+                overflow-x: auto;
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                font-size: 13px;
+                margin: 10px 0;
+            }
+            .recommendations {
+                background-color: #f0f7ff;
+                border-radius: 8px;
+                padding: 20px;
+                margin-bottom: 30px;
+            }
+            .tags {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                margin-top: 10px;
+            }
+            .tag {
+                background: #e9ecef;
+                border-radius: 16px;
+                padding: 4px 12px;
+                font-size: 13px;
+                color: #495057;
+            }
+            @media print {
+                body {
+                    padding: 0;
+                    font-size: 12px;
+                }
+                .finding {
+                    page-break-inside: avoid;
+                    break-inside: avoid;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="report-header">
+            <div class="title">Web Application Security Scan Report</div>
+            <div class="subtitle">Scan completed on ${new Date(summary.endTime).toLocaleString()}</div>
+        </div>
+        
+        <div class="summary-box">
+            <h2>Scan Summary</h2>
+            <div class="summary-grid">
+                <div class="summary-item">
+                    <h3>Target URL</h3>
+                    <p>${summary.url}</p>
+                </div>
+                <div class="summary-item">
+                    <h3>Scan Duration</h3>
+                    <p>${formatDuration(summary.duration || (summary.scanTime || 0) * 1000)}</p>
+                </div>
+                <div class="summary-item">
+                    <h3>Total Vulnerabilities</h3>
+                    <p>${summary.total}</p>
+                </div>
+                <div class="summary-item">
+                    <h3>Requests Sent</h3>
+                    <p>${summary.requestsSent || summary.numRequests || 0}</p>
+                </div>
+                <div class="summary-item">
+                    <h3>Pages Crawled</h3>
+                    <p>${summary.pagesScanned || summary.testedPages || 0}</p>
+                </div>
+            </div>
+        </div>
+        
+        <h2>Vulnerabilities by Severity</h2>
+        
+        <div class="severity-distribution">
+            ${renderSeverityBar('critical', summary.critical, summary.total)}
+            ${renderSeverityBar('high', summary.high, summary.total)}
+            ${renderSeverityBar('medium', summary.medium, summary.total)}
+            ${renderSeverityBar('low', summary.low, summary.total)}
+            ${renderSeverityBar('info', summary.info, summary.total)}
+        </div>
+        
+        <div class="findings">
+            <h2>Detailed Findings</h2>
+            ${vulnerabilities.map(renderVulnerability).join('')}
+        </div>
+        
+        <div class="recommendations">
+            <h2>Next Steps</h2>
+            <p>This report provides a detailed analysis of the security vulnerabilities found in your web application. We recommend addressing the critical and high severity issues first, as they pose the most significant risk to your application and data.</p>
+            <p>For each vulnerability, follow the provided remediation advice to fix the issue. After implementing the fixes, we recommend running another scan to verify that the vulnerabilities have been successfully mitigated.</p>
+        </div>
+        
+        <footer>
+            <p>Scan performed using Web Security Scanner</p>
+            <p>Scan ID: ${summary.scanID}</p>
+            <p>Report generated: ${new Date().toLocaleString()}</p>
+        </footer>
+    </body>
+    </html>
+  `;
 }
 
-// Function to simulate generating a PDF
-export function simulateGeneratePdf(reportData: ReportData): Blob {
-  // In a real implementation, this would use a library like jsPDF or pdfmake
-  // For now, we'll just return a placeholder blob
-  const jsonString = JSON.stringify(reportData, null, 2);
-  return new Blob([jsonString], { type: 'application/json' });
+// Helper function to format duration in ms to a readable string
+function formatDuration(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  
+  if (hours > 0) {
+    return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
+  } else if (minutes > 0) {
+    return `${minutes}m ${seconds % 60}s`;
+  } else {
+    return `${seconds}s`;
+  }
 }
 
-// Function to generate CSV data
-export function generateCsvData(vulnerabilities: Vulnerability[]): string {
-  // Create CSV header
-  const header = "ID,Type,Severity,URL,Parameter,Description,Remediation\n";
+// Render a severity bar with appropriate width based on count
+function renderSeverityBar(severity: string, count: number, total: number): string {
+  if (total === 0) return '';
+  const percentage = (count / total) * 100;
   
-  // Generate rows
-  const rows = vulnerabilities.map(vuln => {
-    // Escape any commas in fields by wrapping in quotes
-    const escapedDescription = `"${vuln.description.replace(/"/g, '""')}"`;
-    const escapedRemediation = `"${vuln.remediation.replace(/"/g, '""')}"`;
-    const type = vuln.type || vuln.title.split(' ')[0];
-    const url = vuln.url || vuln.location;
-    const parameter = vuln.parameter || 'N/A';
-    
-    return `${vuln.id},${type},${vuln.severity},${url},${parameter},${escapedDescription},${escapedRemediation}`;
-  }).join("\n");
-  
-  return header + rows;
+  return `
+    <div class="severity-bar ${severity}" style="width: ${percentage}%">
+      ${count > 0 ? `${count} ${severity}` : ''}
+    </div>
+  `;
 }
 
-// Function to download a file
-export function downloadFile(data: Blob | string, filename: string): void {
-  const blob = typeof data === 'string' ? new Blob([data]) : data;
-  const url = URL.createObjectURL(blob);
+// Render a single vulnerability as HTML
+function renderVulnerability(vuln: Vulnerability): string {
+  return `
+    <div class="finding">
+      <div class="finding-header" style="background-color: ${getSeverityColor(vuln.severity)}20;">
+        <h3 class="finding-title">${vuln.title}</h3>
+        <span class="finding-severity" style="background-color: ${getSeverityColor(vuln.severity)}">
+          ${vuln.severity.toUpperCase()}
+        </span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-section">
+          <div class="finding-section-title">Description</div>
+          <div class="finding-section-content">${vuln.description}</div>
+        </div>
+        
+        <div class="finding-section">
+          <div class="finding-section-title">Location</div>
+          <div class="finding-section-content">${vuln.location}</div>
+        </div>
+        
+        <div class="finding-section">
+          <div class="finding-section-title">Evidence</div>
+          <div class="code-block">${vuln.evidence}</div>
+        </div>
+        
+        ${vuln.request ? `
+        <div class="finding-section">
+          <div class="finding-section-title">HTTP Request</div>
+          <div class="code-block">${vuln.request}</div>
+        </div>
+        ` : ''}
+        
+        ${vuln.response ? `
+        <div class="finding-section">
+          <div class="finding-section-title">HTTP Response</div>
+          <div class="code-block">${vuln.response}</div>
+        </div>
+        ` : ''}
+        
+        <div class="finding-section">
+          <div class="finding-section-title">Remediation</div>
+          <div class="finding-section-content">${vuln.remediation}</div>
+        </div>
+        
+        <div class="finding-section">
+          <div class="finding-section-title">Risk Information</div>
+          <div class="finding-section-content">
+            ${vuln.cweid ? `CWE ID: ${vuln.cweid}<br>` : ''}
+            ${vuln.owasp ? `OWASP: ${vuln.owasp}<br>` : ''}
+            ${vuln.cvssScore ? `CVSS Score: ${vuln.cvssScore.toFixed(1)}/10` : ''}
+          </div>
+        </div>
+        
+        <div class="tags">
+          ${vuln.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Get appropriate color for severity level
+function getSeverityColor(severity: string): string {
+  switch (severity.toLowerCase()) {
+    case 'critical': return '#d9534f';
+    case 'high': return '#f0ad4e';
+    case 'medium': return '#5bc0de';
+    case 'low': return '#5cb85c';
+    case 'info': return '#777';
+    default: return '#777';
+  }
+}
+
+// Generate a JSON report
+export function generateJsonReport(results: ScanResults): string {
+  return JSON.stringify(results, null, 2);
+}
+
+// Generate a CSV report of vulnerabilities
+export function generateCsvReport(results: ScanResults): string {
+  if (!results || !results.vulnerabilities || !results.vulnerabilities.length) {
+    return 'No vulnerabilities found';
+  }
   
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
+  const headers = ['ID', 'Title', 'Severity', 'Description', 'Location', 'CWE ID', 'OWASP', 'CVSS Score', 'Timestamp'];
+  const rows = results.vulnerabilities.map(v => [
+    v.id,
+    `"${v.title.replace(/"/g, '""')}"`, // Escape quotes in CSV
+    v.severity,
+    `"${v.description.replace(/"/g, '""')}"`,
+    `"${v.location.replace(/"/g, '""')}"`,
+    v.cweid,
+    v.owasp || '',
+    v.cvssScore?.toString() || '',
+    v.timestamp
+  ]);
   
-  // Cleanup
-  setTimeout(() => {
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, 0);
+  return [
+    headers.join(','),
+    ...rows.map(row => row.join(','))
+  ].join('\n');
 }

@@ -2,7 +2,7 @@
 import { ScanConfig, ScanResults } from './scanEngine';
 
 // Configuration for your server
-const SERVER_API_URL = 'https://your-personal-server.com/api';
+const SERVER_API_URL = 'http://teddytechnologies.com:8080/api';
 
 interface ServerResponse<T> {
   success: boolean;

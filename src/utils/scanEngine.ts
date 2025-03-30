@@ -4,27 +4,30 @@ import { v4 as uuidv4 } from 'uuid';
 // Define types
 export interface ScanConfig {
   url: string;
-  scanMode: 'quick' | 'standard' | 'thorough';  // Add this property
-  scanType: 'passive' | 'active' | 'full';
-  scanOptions: {
-    includeCookies: boolean;
-    includeHeaders: boolean;
-    followRedirects: boolean;
-    maxDepth: number;
-    maxPages: number;
-    throttle: number;
-    authentication?: {
-      username: string;
-      password: string;
-      method: 'basic' | 'form' | 'token';
-      loginUrl?: string;
-      loginSelector?: string;
-      token?: string;
-    };
-    customHeaders?: Record<string, string>;
-    excludePaths?: string[];
+  scanMode: 'quick' | 'standard' | 'thorough';
+  authRequired?: boolean;
+  username?: string;
+  password?: string;
+  xssTests?: boolean;
+  sqlInjectionTests?: boolean;
+  csrfTests?: boolean;
+  headerTests?: boolean;
+  fileUploadTests?: boolean;
+  threadCount?: number;
+  captureScreenshots?: boolean;
+  recordVideos?: boolean;
+  aiAnalysis?: boolean;
+  maxDepth?: number;
+  // Legacy properties - keeping for compatibility
+  scanType?: 'passive' | 'active' | 'full';
+  scanOptions?: {
+    includeCookies?: boolean;
+    maxDepth?: number;
+    throttle?: number;
+    followRedirects?: boolean;
+    enableScreenshots?: boolean;
   };
-  vulnerabilityTypes: string[];
+  vulnerabilityTypes?: string[];
 }
 
 export interface Vulnerability {
@@ -38,15 +41,10 @@ export interface Vulnerability {
   cweid: string;
   owasp?: string;
   cvssScore?: number;
-  exploitability?: string;
-  falsePositive?: boolean;
   timestamp: string;
-  request?: string;
-  response?: string;
   tags: string[];
-  type?: string;
-  parameter?: string;
-  url?: string;
+  request: string;
+  response: string;
 }
 
 export interface ScanSummary {
@@ -55,7 +53,7 @@ export interface ScanSummary {
   startTime: string;
   endTime: string;
   duration: number;
-  scanType: string;
+  scanType?: string;
   pagesScanned: number;
   requestsSent: number;
   critical: number;
@@ -64,30 +62,16 @@ export interface ScanSummary {
   low: number;
   info: number;
   total: number;
-  timestamp?: string;
-  scanTime?: string;
+  // For compatibility with older code
+  scanTime?: number;
   numRequests?: number;
   testedPages?: number;
 }
 
 export interface ScanResults {
-  summary: {
-    scanID: string;
-    url: string;
-    startTime: string;
-    endTime: string;
-    duration: number;
-    pagesScanned: number;
-    requestsSent: number;
-    critical: number;
-    high: number;
-    medium: number;
-    low: number;
-    info: number;
-    total: number;
-  };
+  summary: ScanSummary;
   vulnerabilities: Array<Vulnerability>;
-  scanConfig: ScanConfig;
+  scanConfig?: ScanConfig;
 }
 
 // Scan engine implementation
@@ -97,7 +81,7 @@ export const performScan = async (config: ScanConfig): Promise<ScanResults> => {
   
   console.log(`Starting scan ${scanID} for ${config.url}`);
   console.log(`Scan type: ${config.scanType}`);
-  console.log(`Vulnerability types: ${config.vulnerabilityTypes.join(', ')}`);
+  console.log(`Vulnerability types: ${config.vulnerabilityTypes?.join(', ')}`);
   
   const totalSteps = calculateTotalSteps(config);
   let currentStep = 0;
@@ -165,8 +149,8 @@ const calculateTotalSteps = (config: ScanConfig): number => {
   const baseSteps = config.scanType === 'passive' ? 10 : 
                     config.scanType === 'active' ? 30 : 50;
   
-  const vulnerabilityTypeMultiplier = config.vulnerabilityTypes.length / 5;
-  const depthMultiplier = config.scanOptions.maxDepth / 2;
+  const vulnerabilityTypeMultiplier = config.vulnerabilityTypes?.length / 5;
+  const depthMultiplier = config.scanOptions?.maxDepth / 2;
   
   return Math.floor(baseSteps * vulnerabilityTypeMultiplier * depthMultiplier);
 };
@@ -175,9 +159,9 @@ const calculateScanDuration = (config: ScanConfig): number => {
   const baseDuration = config.scanType === 'passive' ? 5000 : 
                       config.scanType === 'active' ? 15000 : 30000;
   
-  const vulnerabilityTypeMultiplier = config.vulnerabilityTypes.length / 5;
-  const depthMultiplier = config.scanOptions.maxDepth / 2;
-  const throttleFactor = (1000 - config.scanOptions.throttle) / 1000;
+  const vulnerabilityTypeMultiplier = config.vulnerabilityTypes?.length / 5;
+  const depthMultiplier = config.scanOptions?.maxDepth / 2;
+  const throttleFactor = (1000 - config.scanOptions?.throttle) / 1000;
   
   return Math.floor(baseDuration * vulnerabilityTypeMultiplier * depthMultiplier * throttleFactor);
 };
@@ -339,7 +323,7 @@ const generateVulnerabilities = (config: ScanConfig): Vulnerability[] => {
     ]
   };
   
-  for (const vulnType of config.vulnerabilityTypes) {
+  for (const vulnType of config.vulnerabilityTypes || []) {
     if (vulnerabilityFindings[vulnType]) {
       const instanceCount = Math.floor(Math.random() * 3) + 1;
       
