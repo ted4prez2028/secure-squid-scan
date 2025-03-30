@@ -33,26 +33,46 @@ export interface Vulnerability {
   cvss?: number;
   status: 'open' | 'confirmed' | 'false-positive' | 'resolved';
   discoveredAt: string;
+  // Additional properties needed by components
+  type?: string;
+  title?: string;
+  location?: string;
+  request?: string;
+  response?: string;
+  cweid?: string;
+  owasp?: string;
+  cvssScore?: number;
+  tags?: string[];
+  timestamp?: string;
 }
 
+// Export this type for use in reportGenerator.ts
+export type ScanSummary = {
+  scanID: string;
+  url: string;
+  startTime: string;
+  endTime: string;
+  duration: number;
+  total: number;
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+  info: number;
+  testedURLs: number;
+  testedParameters: number;
+  engineVersion: string;
+  scanMode: 'quick' | 'standard' | 'thorough';
+  // Additional properties needed by reportGenerator
+  scanTime?: string;
+  requestsSent?: number;
+  numRequests?: number;
+  pagesScanned?: number;
+  testedPages?: number;
+};
+
 export interface ScanResults {
-  summary: {
-    scanID: string;
-    url: string;
-    startTime: string;
-    endTime: string;
-    duration: number;
-    total: number;
-    critical: number;
-    high: number;
-    medium: number;
-    low: number;
-    info: number;
-    testedURLs: number;
-    testedParameters: number;
-    engineVersion: string;
-    scanMode: 'quick' | 'standard' | 'thorough';
-  };
+  summary: ScanSummary;
   vulnerabilities: Vulnerability[];
   testedURLs: string[];
   screenshots?: { url: string, path: string }[];
@@ -71,6 +91,8 @@ export interface ScanResults {
   };
   aiSummary?: string;
   aiRemediation?: string;
+  // Additional properties
+  scanConfig?: ScanConfig; // Required by Dashboard component
 }
 
 // Export this stub for the ScanAgent class as it's no longer needed client-side
@@ -272,7 +294,13 @@ We recommend addressing Critical and High severity issues immediately as they po
         testedURLs: testedURLsCount,
         testedParameters: testedParametersCount,
         engineVersion: '1.0.0',
-        scanMode: config.scanMode
+        scanMode: config.scanMode,
+        // Additional properties for reportGenerator
+        scanTime: startTime,
+        requestsSent: testedParametersCount,
+        numRequests: testedParametersCount,
+        pagesScanned: testedURLsCount, 
+        testedPages: testedURLsCount
       },
       vulnerabilities,
       testedURLs,
@@ -293,7 +321,8 @@ We recommend addressing Critical and High severity issues immediately as they po
         }
       },
       aiSummary,
-      aiRemediation
+      aiRemediation,
+      scanConfig: config // Add the scan configuration to the results
     };
   }
 }
