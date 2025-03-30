@@ -108,17 +108,6 @@ const FormControl = React.forwardRef<
 >(({ ...props }, ref) => {
   const { error, formItemId, formDescriptionId, formMessageId } = useFormField()
 
-  // Make sure we're passing a defined value to eliminate uncontrolled->controlled warnings
-  const enhancedProps = { ...props };
-  if (enhancedProps.children && 
-      React.isValidElement(enhancedProps.children) && 
-      enhancedProps.children.props.value === undefined) {
-    enhancedProps.children = React.cloneElement(
-      enhancedProps.children, 
-      { value: "" }
-    );
-  }
-
   return (
     <Slot
       ref={ref}
@@ -129,7 +118,7 @@ const FormControl = React.forwardRef<
           : `${formDescriptionId} ${formMessageId}`
       }
       aria-invalid={!!error}
-      {...enhancedProps}
+      {...props}
     />
   )
 })
