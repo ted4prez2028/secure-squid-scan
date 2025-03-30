@@ -59,7 +59,7 @@ export function generatePdfReport(scanResults: ScanResults): jsPDF {
       ['Target URL', scanResults.summary.url],
       ['Scan Start Time', formatDate(scanResults.summary.startTime)],
       ['Scan End Time', formatDate(scanResults.summary.endTime)],
-      ['Scan Duration', formatDuration(scanResults.summary.duration)],
+      ['Scan Duration', formatDuration(scanResults.summary.duration || 0)],
       ['Scan Mode', scanResults.summary.scanMode.toUpperCase()],
       ['Pages Scanned', scanResults.summary.testedPages?.toString() || scanResults.summary.testedURLs?.toString() || '0'],
       ['Requests Sent', scanResults.summary.requestsSent?.toString() || 'N/A'],

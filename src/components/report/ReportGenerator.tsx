@@ -2,18 +2,18 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ReportHeader } from './ReportHeader';
-import { StandardReportForm } from './StandardReportForm';
-import { AdvancedReportOptions } from './AdvancedReportOptions';
-import { ReportTemplates } from './ReportTemplates';
-import { SavedTemplates } from './SavedTemplates';
-import { ReportHistory } from './ReportHistory';
+import ReportHeader from './ReportHeader';
+import StandardReportForm from './StandardReportForm';
+import AdvancedReportOptions from './AdvancedReportOptions';
+import ReportTemplates from './ReportTemplates';
+import SavedTemplates from './SavedTemplates';
+import ReportHistory from './ReportHistory';
 import { generatePdfReport, generateHtmlReport, generateCsvReport } from '@/utils/reports';
 import { Button } from "@/components/ui/button";
 import { Download, FileText, FileType } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ScanResults } from "@/utils/reports/types";
-import { ErrorToast } from './ErrorToast';
+import ErrorToast from './ErrorToast';
 
 interface ReportGeneratorProps {
   scanResults: ScanResults;
@@ -29,18 +29,16 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
   const [generatedCsvContent, setGeneratedCsvContent] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const handleGenerateReport = async (reportType: 'pdf' | 'html' | 'csv', options = {}) => {
+  const handleGenerateReport = async (reportType: 'pdf' | 'html' | 'csv') => {
     setIsLoading(true);
     
     try {
       if (reportType === 'pdf') {
-        const pdfBlob = await generatePdfReport(scanResults, {
-          title: reportTitle,
-          subtitle: reportSubtitle,
-          ...options
-        });
+        const pdfBlob = await generatePdfReport(scanResults);
         
-        const pdfUrl = URL.createObjectURL(pdfBlob);
+        // Convert jsPDF to Blob
+        const pdfBlobData = pdfBlob.output('blob');
+        const pdfUrl = URL.createObjectURL(pdfBlobData);
         setGeneratedPdfUrl(pdfUrl);
         
         // Auto download
@@ -56,11 +54,7 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
           description: "Your PDF report has been generated and downloaded."
         });
       } else if (reportType === 'html') {
-        const htmlContent = generateHtmlReport(scanResults, {
-          title: reportTitle,
-          subtitle: reportSubtitle,
-          ...options
-        });
+        const htmlContent = generateHtmlReport(scanResults);
         
         setGeneratedHtmlContent(htmlContent);
         
@@ -69,7 +63,7 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
           description: "Your HTML report has been generated and is ready for preview."
         });
       } else if (reportType === 'csv') {
-        const csvContent = generateCsvReport(scanResults, options);
+        const csvContent = generateCsvReport(scanResults);
         setGeneratedCsvContent(csvContent);
         
         // Auto download CSV
@@ -94,7 +88,7 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
         variant: "destructive",
         title: `Failed to generate ${reportType.toUpperCase()} report`,
         description: error instanceof Error ? error.message : "An unknown error occurred",
-        action: <ErrorToast />,
+        action: <ErrorToast showErrorToast={true} />,
       });
     } finally {
       setIsLoading(false);
@@ -215,9 +209,18 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
         </TabsContent>
         
         <TabsContent value="templates" className="space-y-6 pt-4">
-          <SavedTemplates />
-          <ReportTemplates />
-          <ReportHistory />
+          <SavedTemplates 
+            useTemplate={() => {}} 
+            createTemplate={() => {}}
+          />
+          <ReportTemplates 
+            reportTemplate=""
+            setReportTemplate={() => {}}
+          />
+          <ReportHistory 
+            reportHistory={[]}
+            downloadReport={() => {}}
+          />
         </TabsContent>
       </Tabs>
     </div>
