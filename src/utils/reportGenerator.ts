@@ -1,5 +1,5 @@
 
-import { ScanResults, VulnerabilityFinding } from './scanEngine';
+import { ScanResults, Vulnerability } from './scanEngine';
 
 // This is a utility that would be used with a PDF generation library
 // Since we can't directly generate PDFs in the browser, we'll simulate the structure
@@ -39,7 +39,7 @@ export interface ReportData {
 }
 
 export interface ReportVulnerability {
-  id: number;
+  id: string;
   title: string;
   type: string;
   severity: string;
@@ -62,12 +62,12 @@ export function generateReportData(scanResults: ScanResults, options: ReportOpti
   const sections: ReportSection[] = [
     {
       title: "Executive Summary",
-      content: `This security assessment identified ${scanResults.summary.total} vulnerabilities in the target application at ${scanResults.summary.url}. The scan was conducted on ${new Date(scanResults.summary.timestamp).toLocaleString()} and took ${scanResults.summary.scanTime} to complete.`,
+      content: `This security assessment identified ${scanResults.summary.total} vulnerabilities in the target application at ${scanResults.summary.url}. The scan was conducted on ${new Date(scanResults.summary.startTime).toLocaleString()} and took ${scanResults.summary.scanTime || (scanResults.summary.duration/1000 + " seconds")} to complete.`,
       level: 1
     },
     {
       title: "Scope",
-      content: `The scope of this security assessment included automated scanning of the web application at ${scanResults.summary.url} with ${scanResults.summary.numRequests || "multiple"} HTTP requests made to ${scanResults.summary.testedPages || "various"} pages.`,
+      content: `The scope of this security assessment included automated scanning of the web application at ${scanResults.summary.url} with ${scanResults.summary.numRequests || scanResults.summary.requestsSent || "multiple"} HTTP requests made to ${scanResults.summary.testedPages || scanResults.summary.pagesScanned || "various"} pages.`,
       level: 1
     },
     {
@@ -92,14 +92,14 @@ export function generateReportData(scanResults: ScanResults, options: ReportOpti
   }
   
   // Transform vulnerabilities for the report
-  const vulnerabilities: ReportVulnerability[] = filteredVulns.map(vuln => {
+  const vulnerabilities: ReportVulnerability[] = filteredVulns.map((vuln, index) => {
     const reportVuln: ReportVulnerability = {
-      id: vuln.id,
-      title: `${vuln.type} in ${vuln.parameter}`,
-      type: vuln.type,
+      id: vuln.id || String(index + 1),
+      title: `${vuln.type || vuln.title.split(' ')[0]} in ${vuln.parameter || 'application'}`,
+      type: vuln.type || vuln.title.split(' ')[0],
       severity: vuln.severity,
       description: vuln.description,
-      location: `${vuln.url} (Parameter: ${vuln.parameter})`,
+      location: `${vuln.url || vuln.location} ${vuln.parameter ? `(Parameter: ${vuln.parameter})` : ''}`,
       evidence: vuln.evidence,
     };
     
@@ -111,12 +111,11 @@ export function generateReportData(scanResults: ScanResults, options: ReportOpti
       reportVuln.cwe = vuln.cweid;
     }
     
-    if (options.includeReferences && vuln.references) {
-      reportVuln.references = vuln.references;
-    }
-    
-    if (options.includeScreenshots && vuln.screenshot) {
-      reportVuln.screenshot = vuln.screenshot;
+    if (options.includeReferences && vuln.owasp) {
+      reportVuln.references = [{
+        title: "OWASP " + vuln.owasp, 
+        url: `https://owasp.org/Top10/${vuln.owasp?.split(':')[0].replace('A', 'A0')}/`
+      }];
     }
     
     return reportVuln;
@@ -134,7 +133,7 @@ export function generateReportData(scanResults: ScanResults, options: ReportOpti
       mediumCount: scanResults.summary.medium,
       lowCount: scanResults.summary.low,
       infoCount: scanResults.summary.info,
-      scanDuration: scanResults.summary.scanTime
+      scanDuration: scanResults.summary.scanTime || (scanResults.summary.duration/1000 + " seconds")
     },
     sections,
     vulnerabilities
@@ -152,7 +151,7 @@ export function simulateGeneratePdf(reportData: ReportData): Blob {
 }
 
 // Function to generate CSV data
-export function generateCsvData(vulnerabilities: VulnerabilityFinding[]): string {
+export function generateCsvData(vulnerabilities: Vulnerability[]): string {
   // Create CSV header
   const header = "ID,Type,Severity,URL,Parameter,Description,Remediation\n";
   
@@ -161,8 +160,11 @@ export function generateCsvData(vulnerabilities: VulnerabilityFinding[]): string
     // Escape any commas in fields by wrapping in quotes
     const escapedDescription = `"${vuln.description.replace(/"/g, '""')}"`;
     const escapedRemediation = `"${vuln.remediation.replace(/"/g, '""')}"`;
+    const type = vuln.type || vuln.title.split(' ')[0];
+    const url = vuln.url || vuln.location;
+    const parameter = vuln.parameter || 'N/A';
     
-    return `${vuln.id},${vuln.type},${vuln.severity},${vuln.url},${vuln.parameter},${escapedDescription},${escapedRemediation}`;
+    return `${vuln.id},${type},${vuln.severity},${url},${parameter},${escapedDescription},${escapedRemediation}`;
   }).join("\n");
   
   return header + rows;

