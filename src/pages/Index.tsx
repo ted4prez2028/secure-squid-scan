@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -208,7 +209,7 @@ const Index = () => {
                     Complete a vulnerability scan first to generate detailed PDF reports.
                   </p>
                   <Button onClick={() => setActiveTab("scan")} variant="purple">
-                    <Bug className="h-4 w-4" />
+                    <Bug className="mr-2 h-4 w-4" />
                     Start New Scan
                   </Button>
                 </div>

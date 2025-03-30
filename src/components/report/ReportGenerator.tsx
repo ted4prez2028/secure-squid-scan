@@ -36,8 +36,8 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ scanResults }) => {
       if (reportType === 'pdf') {
         const pdfBlob = await generatePdfReport(scanResults);
         
-        // Convert jsPDF to Blob
-        const pdfBlobData = pdfBlob.output('blob');
+        // Convert jsPDF output to Blob
+        const pdfBlobData = new Blob([pdfBlob.output('blob')], { type: 'application/pdf' });
         const pdfUrl = URL.createObjectURL(pdfBlobData);
         setGeneratedPdfUrl(pdfUrl);
         
