@@ -1,4 +1,3 @@
-
 // Importing base types from scanEngine to maintain compatibility
 import { ScanConfig, ScanResults as ScanResultsBase, Vulnerability } from '../scanEngine';
 
@@ -15,9 +14,9 @@ export interface ScanStatusResponse {
   error?: string;
 }
 
-// Re-export the ScanResults type from scanEngine
+// Re-export the ScanResults type from scanEngine using export type
 export type ScanResults = ScanResultsBase;
-export { ScanResultsBase };
+export type { ScanResultsBase };
 
 // Interface for custom payload handling
 export interface ScanData {
