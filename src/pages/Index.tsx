@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,15 +43,29 @@ const Index = () => {
         description: `Scanning ${targetUrl} in ${scanOptions.scanMode} mode...`,
       });
       
-      const scanId = await startScan({
+      // Create a scan config object from the form values
+      const scanConfig = {
         url: targetUrl,
-        options: scanOptions
-      });
+        scanMode: scanOptions.scanMode,
+        authRequired: false,
+        xssTests: true,
+        sqlInjectionTests: true,
+        csrfTests: true,
+        headerTests: true,
+        fileUploadTests: true,
+        threadCount: 4,
+        captureScreenshots: true,
+        recordVideos: false,
+        aiAnalysis: true,
+        maxDepth: scanOptions.crawlDepth
+      };
+      
+      const scanId = startScan(scanConfig);
       
       // Simulate scan progress
       setTimeout(async () => {
         try {
-          const results = await getScanResults(scanId);
+          const results = getScanResults(scanId);
           setScanResults(results);
           setScanCompleted(true);
           
@@ -122,23 +137,13 @@ const Index = () => {
             <CardContent className="pt-6">
               {!advancedMode ? (
                 <ScanConfigurationForm
-                  targetUrl={targetUrl}
-                  setTargetUrl={setTargetUrl}
-                  scanOptions={scanOptions}
-                  setScanOptions={setScanOptions}
                   onStartScan={handleScanButtonClick}
-                  onAdvancedModeToggle={() => setAdvancedMode(true)}
-                  scanning={scanning}
+                  isScanning={scanning}
                 />
               ) : (
                 <EnhancedScanConfigurationForm
-                  targetUrl={targetUrl}
-                  setTargetUrl={setTargetUrl}
-                  scanOptions={scanOptions}
-                  setScanOptions={setScanOptions}
                   onStartScan={handleScanButtonClick}
-                  onSimpleModeToggle={() => setAdvancedMode(false)}
-                  scanning={scanning}
+                  isScanning={scanning}
                 />
               )}
             </CardContent>

@@ -1,6 +1,6 @@
 
 // Importing base types from scanEngine to maintain compatibility
-import { ScanConfig, ScanResults, Vulnerability } from '../scanEngine';
+import { ScanConfig, ScanResults as ScanResultsBase, Vulnerability } from '../scanEngine';
 
 // Status types for scans
 export type ScanStatus = 'pending' | 'in_progress' | 'completed' | 'failed';
@@ -14,6 +14,9 @@ export interface ScanStatusResponse {
   results?: ScanResults;
   error?: string;
 }
+
+// Re-export the ScanResults type from scanEngine
+export type ScanResults = ScanResultsBase;
 
 // Interface for custom payload handling
 export interface ScanData {

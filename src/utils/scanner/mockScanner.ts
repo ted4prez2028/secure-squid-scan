@@ -12,12 +12,18 @@ export class MockScanner {
   /**
    * Start a new mock scan
    */
-  public static startScan(config: ScanConfig): ScanResults {
+  public static startScan(config: ScanConfig): string {
     console.log('Using mock data instead of performing a real scan');
     
     // Generate mock results
     const mockResults = ScanAgent.createMockResults(config);
-    return mockResults;
+    const scanId = `mock-scan-${Date.now()}`;
+    
+    // Initialize progress
+    scanProgressMap.set(scanId, 10);
+    scanResultsMap.set(scanId, mockResults);
+    
+    return scanId;
   }
 
   /**
@@ -45,28 +51,25 @@ export class MockScanner {
       // Remove from map to clean up
       scanProgressMap.delete(scanId);
       
-      // Create mock scan config for the results
-      const mockConfig: ScanConfig = {
-        url: 'https://example.com',
-        scanMode: 'standard',
-        authRequired: false,
-        xssTests: true,
-        sqlInjectionTests: true,
-        csrfTests: true,
-        headerTests: true,
-        fileUploadTests: true,
-        threadCount: 4,
-        captureScreenshots: true,
-        recordVideos: false,
-        aiAnalysis: true,
-        maxDepth: 3
-      };
-      
       return {
         scanId,
         status: 'completed',
         progress: 100,
-        results: ScanAgent.createMockResults(mockConfig)
+        results: scanResultsMap.get(scanId) || ScanAgent.createMockResults({
+          url: 'https://example.com',
+          scanMode: 'standard',
+          authRequired: false,
+          xssTests: true,
+          sqlInjectionTests: true,
+          csrfTests: true,
+          headerTests: true,
+          fileUploadTests: true,
+          threadCount: 4,
+          captureScreenshots: true,
+          recordVideos: false,
+          aiAnalysis: true,
+          maxDepth: 3
+        })
       };
     }
     
@@ -81,7 +84,13 @@ export class MockScanner {
    * Get the results of a completed mock scan
    */
   public static getScanResults(scanId: string): ScanResults {
-    // Create mock scan config for the results
+    const results = scanResultsMap.get(scanId);
+    
+    if (results) {
+      return results;
+    }
+    
+    // Create mock scan config for the results if no existing results found
     const mockConfig: ScanConfig = {
       url: 'https://example.com',
       scanMode: 'standard',
@@ -101,3 +110,16 @@ export class MockScanner {
     return ScanAgent.createMockResults(mockConfig);
   }
 }
+
+// Export the functions directly for easier importing
+export const startScan = (config: ScanConfig): string => {
+  return MockScanner.startScan(config);
+};
+
+export const checkScanStatus = (scanId: string) => {
+  return MockScanner.checkScanStatus(scanId);
+};
+
+export const getScanResults = (scanId: string): ScanResults => {
+  return MockScanner.getScanResults(scanId);
+};
