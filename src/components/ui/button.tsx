@@ -23,6 +23,9 @@ const buttonVariants = cva(
         download: "bg-scanner-primary/20 text-scanner-primary hover:bg-scanner-primary/30 hover:shadow transition-shadow",
         template: "bg-scanner-primary/10 text-scanner-primary hover:bg-scanner-primary/20 w-full justify-center hover:shadow transition-shadow",
         payloads: "bg-amber-500 text-white hover:bg-amber-600 shadow-md hover:shadow-lg transition-shadow",
+        export: "bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg transition-shadow",
+        success: "bg-green-600 text-white hover:bg-green-700 shadow-md hover:shadow-lg transition-shadow",
+        info: "bg-blue-500/20 text-blue-600 hover:bg-blue-500/30 hover:shadow transition-shadow",
       },
       size: {
         default: "h-10 px-4 py-2",
