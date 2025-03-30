@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +9,7 @@ import ScanResults from "@/components/ScanResults";
 import Dashboard from "@/components/Dashboard";
 import ReportGenerator from "@/components/ReportGenerator";
 import { ScanConfig, ScanResults as ScanResultsType } from "@/utils/scanEngine";
-import { sendScanRequest, checkScanStatus } from "@/utils/serverApi";
+import { sendScanRequest, checkScanStatus, setupLocalApiEndpoint } from "@/utils/serverApi";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -22,7 +21,12 @@ const Index = () => {
   const [currentScanId, setCurrentScanId] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Function to check the status of an ongoing scan
+  useEffect(() => {
+    setupLocalApiEndpoint().catch(error => {
+      console.error("Failed to set up local API endpoints:", error);
+    });
+  }, []);
+
   useEffect(() => {
     let statusInterval: NodeJS.Timeout | null = null;
     
@@ -39,7 +43,6 @@ const Index = () => {
             setScanProgress(100);
             setCurrentScanId(null);
             
-            // Add to scan history
             const newScanHistory = [{
               id: statusResponse.results.summary.scanID,
               url: statusResponse.results.summary.url,
@@ -47,7 +50,6 @@ const Index = () => {
               results: statusResponse.results
             }, ...scanHistory];
             
-            // Limit history to 10 items
             if (newScanHistory.length > 10) {
               newScanHistory.pop();
             }
@@ -75,7 +77,7 @@ const Index = () => {
         } catch (error) {
           console.error("Error checking scan status:", error);
         }
-      }, 3000); // Check every 3 seconds
+      }, 3000);
     }
     
     return () => {
@@ -96,10 +98,8 @@ const Index = () => {
     });
     
     try {
-      // Send the scan request to your server
       const results = await sendScanRequest(config);
       
-      // Set the current scan ID to monitor progress
       setCurrentScanId(results.summary.scanID);
     } catch (error) {
       setIsScanning(false);

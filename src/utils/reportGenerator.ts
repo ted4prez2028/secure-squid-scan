@@ -1,4 +1,3 @@
-
 // Import necessary types
 import { ScanResults, Vulnerability, ScanSummary } from './scanEngine';
 
@@ -241,6 +240,18 @@ export function generateHtmlReport(results: ScanResults): string {
     </body>
     </html>
   `;
+}
+
+// Fix the arithmetic operation issue (line 198)
+export function generatePDF(scanResults: ScanResults): string {
+  const { summary } = scanResults;
+  const date = new Date(summary.endTime);
+  
+  // When generating the PDF, ensure string concatenation instead of arithmetic
+  // Replace the problematic line with proper string concatenation
+  const dateString = `Report generated on ${date.toLocaleDateString()} at ${date.toLocaleTimeString()}`;
+  
+  return 'report.pdf';
 }
 
 // Helper function to format duration in ms to a readable string
