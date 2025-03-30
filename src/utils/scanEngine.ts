@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 // Define types
 export interface ScanConfig {
   url: string;
+  scanMode: 'quick' | 'standard' | 'thorough';  // Add this property
   scanType: 'passive' | 'active' | 'full';
   scanOptions: {
     includeCookies: boolean;
@@ -70,9 +71,23 @@ export interface ScanSummary {
 }
 
 export interface ScanResults {
-  summary: ScanSummary;
-  vulnerabilities: Vulnerability[];
-  scanConfig?: ScanConfig;
+  summary: {
+    scanID: string;
+    url: string;
+    startTime: string;
+    endTime: string;
+    duration: number;
+    pagesScanned: number;
+    requestsSent: number;
+    critical: number;
+    high: number;
+    medium: number;
+    low: number;
+    info: number;
+    total: number;
+  };
+  vulnerabilities: Array<Vulnerability>;
+  scanConfig: ScanConfig;
 }
 
 // Scan engine implementation

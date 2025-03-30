@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -333,7 +332,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           ) : (
             <div className="text-center py-12 text-muted-foreground">
               <div className="mb-4">
-                <FileSearch className="h-12 w-12 mx-auto text-muted-foreground opacity-50" />
+                <FileType className="h-12 w-12 mx-auto text-muted-foreground opacity-50" />
               </div>
               <p>No scan history available yet.</p>
               <p className="mt-2">Complete your first scan to see it here.</p>
