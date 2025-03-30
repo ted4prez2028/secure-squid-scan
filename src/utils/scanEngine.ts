@@ -1,4 +1,3 @@
-
 export interface ScanConfig {
   url: string;
   scanMode: 'quick' | 'standard' | 'thorough';
@@ -69,6 +68,7 @@ export type ScanSummary = {
   numRequests?: number;
   pagesScanned?: number;
   testedPages?: number;
+  timestamp?: number; // Added the timestamp property to fix the error
 };
 
 export interface ScanResults {
@@ -300,7 +300,8 @@ We recommend addressing Critical and High severity issues immediately as they po
         requestsSent: testedParametersCount,
         numRequests: testedParametersCount,
         pagesScanned: testedURLsCount, 
-        testedPages: testedURLsCount
+        testedPages: testedURLsCount,
+        timestamp: Date.now()
       },
       vulnerabilities,
       testedURLs,
