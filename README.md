@@ -1,69 +1,93 @@
-# Welcome to your Lovable project
 
-## Project info
+# OWASP Vulnerability Scanner
 
-**URL**: https://lovable.dev/projects/837cdc57-6780-4b8c-aa94-1f105753c2ad
+## 🛡️ Overview
 
-## How can I edit this code?
+The OWASP Vulnerability Scanner is an advanced web application security scanning tool designed to help developers and security professionals identify potential vulnerabilities in web applications. Built with modern web technologies, this scanner performs comprehensive security assessments across multiple attack vectors.
 
-There are several ways of editing your application.
+## 🚀 Features
 
-**Use Lovable**
+### Vulnerability Testing
+- Cross-Site Scripting (XSS) Detection
+- SQL Injection Testing
+- CSRF Vulnerability Checks
+- Security Header Analysis
+- File Upload Security Validation
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/837cdc57-6780-4b8c-aa94-1f105753c2ad) and start prompting.
+### Scan Modes
+- Quick Scan: Rapid, lightweight assessment
+- Standard Scan: Balanced comprehensive testing
+- Thorough Scan: In-depth, extensive vulnerability discovery
 
-Changes made via Lovable will be committed automatically to this repo.
+### Advanced Capabilities
+- AI-Powered Vulnerability Analysis
+- Customizable Payload Injection
+- Crawl Depth Configuration
+- Screenshot Capture for Vulnerabilities
+- Detailed Reporting (PDF, HTML, CSV)
 
-**Use your preferred IDE**
+## 🛠️ Technologies
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- **Frontend**: React, TypeScript
+- **UI Framework**: Shadcn/UI
+- **Styling**: Tailwind CSS
+- **State Management**: Tanstack React Query
+- **Reporting**: jsPDF, jspdf-autotable
+- **Visualization**: Recharts
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## 📦 Prerequisites
 
-Follow these steps:
+- Node.js (v18+)
+- npm or Bun
+- Modern web browser
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## 🔧 Installation
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+```bash
+# Clone the repository
+git clone <repository-url>
 
-# Step 3: Install the necessary dependencies.
-npm i
+# Navigate to project directory
+cd owasp-vulnerability-scanner
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Install dependencies
+npm install
+
+# Start development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## 🖥️ Usage
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+1. Enter target website URL
+2. Configure scan parameters
+3. Select scan mode (Quick/Standard/Thorough)
+4. Initiate scan
+5. Review detailed vulnerability report
 
-**Use GitHub Codespaces**
+## 🔒 Security Considerations
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+- Always obtain proper authorization before scanning websites
+- Do not use this tool for malicious purposes
+- Respect website terms of service
 
-## What technologies are used for this project?
+## 📊 Scan Result Interpretation
 
-This project is built with .
+The scanner provides:
+- Vulnerability severity ratings
+- Detailed description of each finding
+- Recommended remediation steps
+- Optional AI-generated insights
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## 🤝 Contributing
 
-## How can I deploy this project?
+Contributions are welcome! Please see `CONTRIBUTING.md` for details on our code of conduct and process for submitting pull requests.
 
-Simply open [Lovable](https://lovable.dev/projects/837cdc57-6780-4b8c-aa94-1f105753c2ad) and click on Share -> Publish.
+## 📄 License
 
-## I want to use a custom domain - is that possible?
+This project is licensed under the MIT License.
 
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+## 🙏 Acknowledgments
+
+- OWASP Foundation
+- Open-source security community
