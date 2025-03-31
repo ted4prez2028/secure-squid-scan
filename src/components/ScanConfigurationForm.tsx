@@ -47,10 +47,12 @@ const ScanConfigurationForm: React.FC<ScanConfigurationFormProps> = ({ onStartSc
   const [payloadType, setPayloadType] = useState('xss');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value, type } = e.target;
+    const isCheckbox = type === "checkbox";
+    
     setFormData({
       ...formData,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: isCheckbox ? (e.target as HTMLInputElement).checked : value,
     });
   };
 
@@ -107,7 +109,6 @@ const ScanConfigurationForm: React.FC<ScanConfigurationFormProps> = ({ onStartSc
     });
   };
 
-  // Function to copy text to clipboard safely
   const copyToClipboard = (text: string) => {
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -127,7 +128,6 @@ const ScanConfigurationForm: React.FC<ScanConfigurationFormProps> = ({ onStartSc
             });
           });
       } else {
-        // Fallback for browsers without clipboard API
         const textarea = document.createElement('textarea');
         textarea.value = text;
         textarea.style.position = 'fixed';  // Prevent scrolling to bottom
@@ -201,7 +201,8 @@ const ScanConfigurationForm: React.FC<ScanConfigurationFormProps> = ({ onStartSc
         <Label>
           <Checkbox
             checked={formData.authRequired}
-            onChange={(e) => setFormData({ ...formData, authRequired: e.target.checked })}
+            onCheckedChange={(checked) => 
+              setFormData({ ...formData, authRequired: checked as boolean })}
             disabled={isScanning}
           />
           <span className="ml-2">Authentication Required</span>
@@ -238,7 +239,8 @@ const ScanConfigurationForm: React.FC<ScanConfigurationFormProps> = ({ onStartSc
         <Label>
           <Checkbox
             checked={formData.xssTests}
-            onChange={(e) => setFormData({ ...formData, xssTests: e.target.checked })}
+            onCheckedChange={(checked) => 
+              setFormData({ ...formData, xssTests: checked as boolean })}
             disabled={isScanning}
           />
           <span className="ml-2">XSS Tests</span>
@@ -246,7 +248,8 @@ const ScanConfigurationForm: React.FC<ScanConfigurationFormProps> = ({ onStartSc
         <Label>
           <Checkbox
             checked={formData.sqlInjectionTests}
-            onChange={(e) => setFormData({ ...formData, sqlInjectionTests: e.target.checked })}
+            onCheckedChange={(checked) => 
+              setFormData({ ...formData, sqlInjectionTests: checked as boolean })}
             disabled={isScanning}
           />
           <span className="ml-2">SQL Injection Tests</span>
@@ -254,7 +257,8 @@ const ScanConfigurationForm: React.FC<ScanConfigurationFormProps> = ({ onStartSc
         <Label>
           <Checkbox
             checked={formData.csrfTests}
-            onChange={(e) => setFormData({ ...formData, csrfTests: e.target.checked })}
+            onCheckedChange={(checked) => 
+              setFormData({ ...formData, csrfTests: checked as boolean })}
             disabled={isScanning}
           />
           <span className="ml-2">CSRF Tests</span>
@@ -262,7 +266,8 @@ const ScanConfigurationForm: React.FC<ScanConfigurationFormProps> = ({ onStartSc
         <Label>
           <Checkbox
             checked={formData.headerTests}
-            onChange={(e) => setFormData({ ...formData, headerTests: e.target.checked })}
+            onCheckedChange={(checked) => 
+              setFormData({ ...formData, headerTests: checked as boolean })}
             disabled={isScanning}
           />
           <span className="ml-2">Header Tests</span>
@@ -270,7 +275,8 @@ const ScanConfigurationForm: React.FC<ScanConfigurationFormProps> = ({ onStartSc
         <Label>
           <Checkbox
             checked={formData.fileUploadTests}
-            onChange={(e) => setFormData({ ...formData, fileUploadTests: e.target.checked })}
+            onCheckedChange={(checked) => 
+              setFormData({ ...formData, fileUploadTests: checked as boolean })}
             disabled={isScanning}
           />
           <span className="ml-2">File Upload Tests</span>
@@ -310,7 +316,8 @@ const ScanConfigurationForm: React.FC<ScanConfigurationFormProps> = ({ onStartSc
         <Label>
           <Checkbox
             checked={formData.captureScreenshots}
-            onChange={(e) => setFormData({ ...formData, captureScreenshots: e.target.checked })}
+            onCheckedChange={(checked) => 
+              setFormData({ ...formData, captureScreenshots: checked as boolean })}
             disabled={isScanning}
           />
           <span className="ml-2">Capture Screenshots</span>
@@ -318,7 +325,8 @@ const ScanConfigurationForm: React.FC<ScanConfigurationFormProps> = ({ onStartSc
         <Label>
           <Checkbox
             checked={formData.recordVideos}
-            onChange={(e) => setFormData({ ...formData, recordVideos: e.target.checked })}
+            onCheckedChange={(checked) => 
+              setFormData({ ...formData, recordVideos: checked as boolean })}
             disabled={isScanning}
           />
           <span className="ml-2">Record Videos</span>
@@ -326,7 +334,8 @@ const ScanConfigurationForm: React.FC<ScanConfigurationFormProps> = ({ onStartSc
         <Label>
           <Checkbox
             checked={formData.aiAnalysis}
-            onChange={(e) => setFormData({ ...formData, aiAnalysis: e.target.checked })}
+            onCheckedChange={(checked) => 
+              setFormData({ ...formData, aiAnalysis: checked as boolean })}
             disabled={isScanning}
           />
           <span className="ml-2">AI Analysis</span>
