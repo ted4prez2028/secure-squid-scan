@@ -587,9 +587,18 @@ export class RealScanner {
     // In a real scanner, this would crawl the site and discover pages
     // For simulation, generate realistic URLs based on the site
     try {
-      const urlObj = new URL(baseUrl);
-      const domain = urlObj.hostname;
-      const protocol = urlObj.protocol;
+      // Validate the URL first
+      let validUrl: URL;
+      try {
+        validUrl = new URL(baseUrl);
+      } catch (error) {
+        console.error(`Invalid URL provided: ${baseUrl}`);
+        // Return just the original URL if it's invalid
+        return [baseUrl];
+      }
+
+      const domain = validUrl.hostname;
+      const protocol = validUrl.protocol;
       
       // Common paths for most websites
       const commonPaths = [

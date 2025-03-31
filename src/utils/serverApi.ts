@@ -96,9 +96,21 @@ export async function crawlUrls(targetUrl: string, depth: number = 2): Promise<s
     try {
       console.log(`Crawling URLs from ${targetUrl} with depth ${depth}`);
       
+      // Add validation before attempting to crawl
+      if (!targetUrl || !targetUrl.trim()) {
+        console.warn("Empty or invalid URL provided to crawlUrls");
+        return [];
+      }
+      
+      // Make sure the URL has a protocol
+      let urlToProcess = targetUrl;
+      if (!urlToProcess.startsWith('http://') && !urlToProcess.startsWith('https://')) {
+        urlToProcess = 'https://' + urlToProcess;
+      }
+      
       // Use our RealScanner implementation for crawling
       const scanner = RealScanner.getInstance();
-      return scanner.discoverPages(targetUrl, depth);
+      return scanner.discoverPages(urlToProcess, depth);
     } catch (error) {
       console.error('Error crawling URLs:', error);
       throw error;
