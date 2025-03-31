@@ -4,9 +4,10 @@ import { AlertCircle } from "lucide-react";
 
 interface ErrorToastProps {
   showErrorToast: boolean;
+  errorMessage?: string;
 }
 
-const ErrorToast: React.FC<ErrorToastProps> = ({ showErrorToast }) => {
+const ErrorToast: React.FC<ErrorToastProps> = ({ showErrorToast, errorMessage }) => {
   if (!showErrorToast) return null;
   
   return (
@@ -16,8 +17,7 @@ const ErrorToast: React.FC<ErrorToastProps> = ({ showErrorToast }) => {
         <div>
           <h3 className="font-medium mb-1">Report Generation Failed</h3>
           <p className="text-sm">
-            There was an error generating the PDF report. The jspdf-autotable plugin is not properly loaded.
-            Try downloading in HTML or CSV format instead.
+            {errorMessage || "There was an error generating the PDF report. The jspdf-autotable plugin is not properly loaded. Try downloading in HTML or CSV format instead."}
           </p>
         </div>
       </div>

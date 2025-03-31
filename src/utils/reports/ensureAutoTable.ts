@@ -20,7 +20,17 @@ export function ensureAutoTableLoaded(): boolean {
           typeof window.jspdf.jsPDF === 'function' &&
           typeof window.jspdf.autoTable === 'function') {
         console.log('Found autoTable in window, attempting to attach');
-        return true;
+        
+        try {
+          // Try to attach the autoTable plugin manually
+          window.jspdf.autoTable(jsPDF.prototype);
+          
+          // Verify it worked
+          return typeof doc.autoTable === 'function';
+        } catch (e) {
+          console.error('Failed to attach autoTable plugin:', e);
+          return false;
+        }
       }
       
       return false;
@@ -29,6 +39,35 @@ export function ensureAutoTableLoaded(): boolean {
     return true;
   } catch (error) {
     console.error('Error checking jspdf-autotable:', error);
+    return false;
+  }
+}
+
+/**
+ * Function to verify if the jspdf-autotable plugin can create tables
+ * This does a more thorough check by actually trying to create a simple table
+ */
+export function verifyAutoTableWorks(): boolean {
+  try {
+    const doc = new jsPDF();
+    
+    if (typeof doc.autoTable !== 'function') {
+      return false;
+    }
+    
+    // Try to create a simple table
+    try {
+      doc.autoTable({
+        head: [['Test']],
+        body: [['Data']]
+      });
+      return true;
+    } catch (e) {
+      console.error('Error creating test table with autoTable:', e);
+      return false;
+    }
+  } catch (error) {
+    console.error('Error verifying autoTable functionality:', error);
     return false;
   }
 }

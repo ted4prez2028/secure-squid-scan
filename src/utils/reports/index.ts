@@ -2,13 +2,14 @@
 import { generatePdfReport } from './pdfReport';
 import { generateHtmlReport } from './htmlReport';
 import { generateCsvReport } from './csvReport';
-import { ensureAutoTableLoaded } from './ensureAutoTable';
+import { ensureAutoTableLoaded, verifyAutoTableWorks } from './ensureAutoTable';
 
 export {
   generatePdfReport,
   generateHtmlReport,
   generateCsvReport,
-  ensureAutoTableLoaded
+  ensureAutoTableLoaded,
+  verifyAutoTableWorks
 };
 
 // Re-export types for convenience
