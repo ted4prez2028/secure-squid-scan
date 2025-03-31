@@ -116,7 +116,8 @@ export const ScannerUtils = {
     
     // Add cloud provider headers if applicable
     if (server.includes('AWS') || server.includes('Cloudfront')) {
-      headers['X-Amz-Cf-Id'] = crypto.randomUUID().slice(0, 16);
+      // Replace crypto.randomUUID with a simple UUID generation function
+      headers['X-Amz-Cf-Id'] = generateSimpleUuid().slice(0, 16);
     }
     
     if (server.includes('CloudFlare')) {
@@ -296,3 +297,14 @@ export const ScannerUtils = {
     return missingHeaders;
   }
 };
+
+/**
+ * Simple UUID generation function to replace crypto.randomUUID
+ */
+function generateSimpleUuid(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}

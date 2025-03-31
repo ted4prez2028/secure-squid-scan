@@ -71,8 +71,28 @@ export async function getScanResults(scanId: string): Promise<ScanResults> {
       
       // Use our RealScanner implementation
       const scanner = RealScanner.getInstance();
-      const results = scanner.getScanResults(scanId);
       
+      // Try to get results, but include retry logic since scan might still be completing
+      let attempts = 0;
+      const maxAttempts = 5;
+      const retryInterval = 1000; // 1 second between retries
+      
+      while (attempts < maxAttempts) {
+        const status = scanner.getScanStatus(scanId);
+        
+        if (status.status === 'completed' && status.results) {
+          return status.results;
+        } else if (status.status === 'failed') {
+          throw new Error(status.error || `Scan ${scanId} failed`);
+        }
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, retryInterval));
+        attempts++;
+      }
+      
+      // If still not complete after all attempts, try one last time to get results directly
+      const results = scanner.getScanResults(scanId);
       if (!results) {
         throw new Error(`No results found for scan ${scanId}`);
       }

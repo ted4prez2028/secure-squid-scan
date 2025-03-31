@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,7 +30,47 @@ const Index = () => {
     scanMode: "standard" as "quick" | "standard" | "thorough", // Type assertion
     scanSpeed: "medium"
   });
+  const [currentScanId, setCurrentScanId] = useState<string | null>(null);
   const { toast } = useToast();
+
+  const pollScanStatus = async (scanId: string) => {
+    try {
+      const status = await checkScanStatus(scanId);
+      
+      if (status.status === 'completed' && status.results) {
+        setScanning(false);
+        setScanCompleted(true);
+        setScanResults(status.results);
+        
+        const vulnerabilitiesMsg = status.results.summary.total === 1 
+          ? "1 vulnerability" 
+          : `${status.results.summary.total} vulnerabilities`;
+        
+        toast({
+          title: "Scan Completed",
+          description: `Found ${vulnerabilitiesMsg}.`,
+        });
+        
+        return true;
+      } else if (status.status === 'failed') {
+        setScanning(false);
+        
+        toast({
+          variant: "destructive",
+          title: "Scan Failed",
+          description: status.error || "The scan failed with an unknown error.",
+        });
+        
+        return true;
+      }
+      
+      // If not done yet, continue polling
+      return false;
+    } catch (error) {
+      console.error("Error polling scan status:", error);
+      return false;
+    }
+  };
 
   const handleScanButtonClick = async (formData: any, customPayloads?: Map<string, string[]>, crawledUrls?: string[]) => {
     setScanning(true);
@@ -76,38 +115,29 @@ const Index = () => {
       
       // Start the scan and get the scan ID, passing custom payloads if available
       const scanId = await startScan(scanConfig, customPayloads);
+      setCurrentScanId(scanId);
       
-      // Simulate scan progress
-      setTimeout(async () => {
-        try {
-          const results = await getScanResults(scanId);
-          setScanResults(results);
-          setScanCompleted(true);
-          
-          // Add info about customPayloads and crawledUrls to the success message
-          const vulnerabilitiesMsg = results.summary.total === 1 
-            ? "1 vulnerability" 
-            : `${results.summary.total} vulnerabilities`;
-          
-          const urlsScannedMsg = crawledUrls && crawledUrls.length > 0 
-            ? ` across ${crawledUrls.length} URLs` 
-            : '';
-          
-          toast({
-            title: "Scan Completed",
-            description: `Found ${vulnerabilitiesMsg}${urlsScannedMsg}.`,
-          });
-        } catch (error) {
-          console.error(error);
+      // Start polling for scan status
+      const pollInterval = setInterval(async () => {
+        const isDone = await pollScanStatus(scanId);
+        if (isDone) {
+          clearInterval(pollInterval);
+        }
+      }, 3000);
+      
+      // Set a timeout to clear the interval after 5 minutes to prevent infinite polling
+      setTimeout(() => {
+        clearInterval(pollInterval);
+        if (scanning) {
+          setScanning(false);
           toast({
             variant: "destructive",
-            title: "Scan Failed",
-            description: "An error occurred while retrieving scan results.",
+            title: "Scan Timed Out",
+            description: "The scan took too long to complete.",
           });
-        } finally {
-          setScanning(false);
         }
-      }, 5000);
+      }, 5 * 60 * 1000);
+      
     } catch (error) {
       setScanning(false);
       console.error(error);
@@ -119,7 +149,6 @@ const Index = () => {
     }
   };
 
-  // Handle configuration changes from form
   const handleConfigChange = (config: any) => {
     // Update the scan options based on the configuration form
     setScanOptions({
