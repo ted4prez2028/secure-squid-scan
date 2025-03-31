@@ -1,3 +1,4 @@
+
 // Importing base types from scanEngine to maintain compatibility
 import { ScanConfig, ScanResults as ScanResultsBase, Vulnerability } from '../scanEngine';
 
@@ -27,6 +28,7 @@ export interface ScanData {
   results?: ScanResults;
   error?: string;
   customPayloads?: Map<string, string[]>;
+  crawledUrls?: string[];
   startTime?: string;
   endTime?: string;
   targetInfo?: {

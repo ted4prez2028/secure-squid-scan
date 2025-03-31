@@ -88,5 +88,42 @@ export async function getScanResults(scanId: string): Promise<ScanResults> {
   }
 }
 
+/**
+ * Crawl URLs from a target website
+ */
+export async function crawlUrls(targetUrl: string, depth: number = 2): Promise<string[]> {
+  if (!USE_MOCK_DATA) {
+    try {
+      console.log(`Crawling URLs from ${targetUrl} with depth ${depth}`);
+      
+      // Use our RealScanner implementation for crawling
+      const scanner = RealScanner.getInstance();
+      return scanner.discoverPages(targetUrl, depth);
+    } catch (error) {
+      console.error('Error crawling URLs:', error);
+      throw error;
+    }
+  } else {
+    // Generate some mock URLs
+    const mockUrls = [];
+    const urlObj = new URL(targetUrl);
+    const baseUrl = `${urlObj.protocol}//${urlObj.hostname}`;
+    
+    // Add some common paths
+    mockUrls.push(baseUrl);
+    mockUrls.push(`${baseUrl}/about`);
+    mockUrls.push(`${baseUrl}/contact`);
+    mockUrls.push(`${baseUrl}/products`);
+    mockUrls.push(`${baseUrl}/services`);
+    
+    // Add some random paths
+    for (let i = 0; i < depth * 3; i++) {
+      mockUrls.push(`${baseUrl}/${Math.random().toString(36).substring(2, 8)}`);
+    }
+    
+    return mockUrls;
+  }
+}
+
 // Export the setupLocalApiEndpoint function
 export { setupLocalApiEndpoint };

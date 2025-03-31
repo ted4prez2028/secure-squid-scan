@@ -14,10 +14,12 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Zap, Shield, AlertTriangle, Database, Lock, FileText, Image, FileBadge, Sparkles, AlertCircle } from "lucide-react";
+import { Zap, Shield, AlertTriangle, Database, Lock, FileText, Image, FileBadge, Sparkles, AlertCircle, Globe } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { crawlUrls } from "@/utils/serverApi";
 
 const scanFormSchema = z.object({
   url: z.string().url({ message: "Please enter a valid URL" }),
@@ -35,12 +37,13 @@ const scanFormSchema = z.object({
   recordVideos: z.boolean().default(false),
   aiAnalysis: z.boolean().default(true),
   maxDepth: z.number().min(1).max(10),
+  crawlBeforeScan: z.boolean().default(false),
 });
 
 type ScanFormValues = z.infer<typeof scanFormSchema>;
 
 interface ScanConfigurationFormProps {
-  onStartScan: (config: ScanFormValues) => void;
+  onStartScan: (config: ScanFormValues, customPayloads?: Map<string, string[]>, crawledUrls?: string[]) => void;
   isScanning: boolean;
 }
 
@@ -56,6 +59,10 @@ const ScanConfigurationForm: React.FC<ScanConfigurationFormProps> = ({
   const [payloadCount, setPayloadCount] = useState<number>(100);
   const [openAIKey, setOpenAIKey] = useState<string>("");
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
+  const [isCrawling, setIsCrawling] = useState(false);
+  const [crawledUrls, setCrawledUrls] = useState<string[]>([]);
+  const [showCrawlResultsDialog, setShowCrawlResultsDialog] = useState(false);
+  const [customPayloads, setCustomPayloads] = useState<Map<string, string[]>>(new Map());
 
   const defaultValues: Partial<ScanFormValues> = {
     scanMode: "standard",
@@ -70,6 +77,7 @@ const ScanConfigurationForm: React.FC<ScanConfigurationFormProps> = ({
     recordVideos: false,
     aiAnalysis: true,
     maxDepth: 3,
+    crawlBeforeScan: false,
   };
 
   const form = useForm<ScanFormValues>({
@@ -78,10 +86,25 @@ const ScanConfigurationForm: React.FC<ScanConfigurationFormProps> = ({
   });
 
   const onSubmit = (data: ScanFormValues) => {
-    onStartScan(data);
+    // Pass custom payloads if they exist
+    const hasCustomPayloads = customPayloads.size > 0;
+    
+    // If crawlBeforeScan is enabled but we haven't crawled yet, do it now
+    if (data.crawlBeforeScan && crawledUrls.length === 0) {
+      toast.info("Crawling website before scan...");
+      handleCrawlWebsite().then(() => {
+        onStartScan(data, hasCustomPayloads ? customPayloads : undefined, crawledUrls);
+      });
+    } else {
+      onStartScan(data, hasCustomPayloads ? customPayloads : undefined, 
+                 data.crawlBeforeScan ? crawledUrls : undefined);
+    }
   };
 
   const authRequired = form.watch("authRequired");
+  const targetUrl = form.watch("url");
+  const maxDepth = form.watch("maxDepth");
+  const crawlBeforeScan = form.watch("crawlBeforeScan");
 
   const generatePayloads = async () => {
     if (!openAIKey) {
@@ -151,13 +174,42 @@ const ScanConfigurationForm: React.FC<ScanConfigurationFormProps> = ({
       const payloads = content.split('\n').filter((line: string) => line.trim() !== '');
       
       setGeneratedPayloads(payloads);
+      
+      // Add the generated payloads to our customPayloads Map
+      setCustomPayloads(prevPayloads => {
+        const newPayloads = new Map(prevPayloads);
+        newPayloads.set(payloadType, payloads);
+        return newPayloads;
+      });
+      
       setShowPayloadsDialog(true);
-      toast.success(`Generated ${payloads.length} ${payloadType.toUpperCase()} payloads`);
+      toast.success(`Generated ${payloads.length} ${payloadType.toUpperCase()} payloads and added to scan configuration`);
     } catch (error) {
       console.error("Error generating payloads:", error);
       toast.error(`Failed to generate payloads: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setIsGeneratingPayloads(false);
+    }
+  };
+
+  const handleCrawlWebsite = async () => {
+    if (!targetUrl) {
+      toast.error("Please enter a valid URL first");
+      return;
+    }
+
+    setIsCrawling(true);
+    try {
+      toast.info(`Crawling ${targetUrl} with depth ${maxDepth}...`);
+      const urls = await crawlUrls(targetUrl, maxDepth);
+      setCrawledUrls(urls);
+      toast.success(`Discovered ${urls.length} URLs on ${targetUrl}`);
+      setShowCrawlResultsDialog(true);
+    } catch (error) {
+      console.error("Error crawling website:", error);
+      toast.error(`Failed to crawl website: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsCrawling(false);
     }
   };
 
@@ -174,9 +226,36 @@ const ScanConfigurationForm: React.FC<ScanConfigurationFormProps> = ({
     toast.success(`Downloaded ${generatedPayloads.length} payloads`);
   };
 
+  const downloadCrawledUrls = () => {
+    const blob = new Blob([crawledUrls.join('\n')], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `crawled_urls.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(`Downloaded ${crawledUrls.length} URLs`);
+  };
+
   const copyToClipboard = () => {
     navigator.clipboard.writeText(generatedPayloads.join('\n'));
     toast.success("Payloads copied to clipboard");
+  };
+
+  const copyCrawledUrls = () => {
+    navigator.clipboard.writeText(crawledUrls.join('\n'));
+    toast.success("URLs copied to clipboard");
+  };
+
+  // Display which payload types have been generated
+  const getPayloadBadges = () => {
+    return Array.from(customPayloads.keys()).map(type => (
+      <Badge key={type} className="mr-1 bg-scanner-primary">
+        {type.toUpperCase()}: {customPayloads.get(type)?.length || 0}
+      </Badge>
+    ));
   };
 
   return (
@@ -246,6 +325,64 @@ const ScanConfigurationForm: React.FC<ScanConfigurationFormProps> = ({
                     </FormItem>
                   )}
                 />
+
+                <FormField
+                  control={form.control}
+                  name="crawlBeforeScan"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Crawl Website</FormLabel>
+                        <FormDescription>
+                          Discover and scan all pages on the target website
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                {crawlBeforeScan && crawledUrls.length > 0 && (
+                  <div className="bg-muted p-3 rounded-md">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium">
+                        {crawledUrls.length} URLs discovered
+                      </span>
+                      <Button variant="outline" size="sm" onClick={() => setShowCrawlResultsDialog(true)}>
+                        View URLs
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {crawlBeforeScan && crawledUrls.length === 0 && (
+                  <div className="flex justify-end">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={handleCrawlWebsite}
+                      className="flex items-center gap-2"
+                      disabled={isCrawling || !targetUrl}
+                    >
+                      {isCrawling ? (
+                        <>
+                          <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full"></div>
+                          Crawling...
+                        </>
+                      ) : (
+                        <>
+                          <Globe className="h-4 w-4" />
+                          Crawl Now
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
 
                 <FormField
                   control={form.control}
@@ -424,6 +561,18 @@ const ScanConfigurationForm: React.FC<ScanConfigurationFormProps> = ({
                   )}
                 />
 
+                {customPayloads.size > 0 && (
+                  <div className="p-4 border rounded-md">
+                    <h3 className="text-sm font-medium mb-2">Generated Payloads:</h3>
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {getPayloadBadges()}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      These payloads will be used in the scan
+                    </p>
+                  </div>
+                )}
+
                 <div className="flex justify-between">
                   <Button 
                     type="button" 
@@ -478,6 +627,11 @@ const ScanConfigurationForm: React.FC<ScanConfigurationFormProps> = ({
                           <FormDescription>
                             Test for reflected, stored, and DOM-based XSS vulnerabilities
                           </FormDescription>
+                          {customPayloads.has('xss') && (
+                            <Badge variant="outline" className="mt-1">
+                              Using {customPayloads.get('xss')?.length || 0} custom payloads
+                            </Badge>
+                          )}
                         </div>
                       </FormItem>
                     )}
@@ -502,6 +656,11 @@ const ScanConfigurationForm: React.FC<ScanConfigurationFormProps> = ({
                           <FormDescription>
                             Test for SQL injection vulnerabilities in parameters
                           </FormDescription>
+                          {customPayloads.has('sql') && (
+                            <Badge variant="outline" className="mt-1">
+                              Using {customPayloads.get('sql')?.length || 0} custom payloads
+                            </Badge>
+                          )}
                         </div>
                       </FormItem>
                     )}
@@ -526,6 +685,11 @@ const ScanConfigurationForm: React.FC<ScanConfigurationFormProps> = ({
                           <FormDescription>
                             Check for missing or weak CSRF protections in forms
                           </FormDescription>
+                          {customPayloads.has('csrf') && (
+                            <Badge variant="outline" className="mt-1">
+                              Using {customPayloads.get('csrf')?.length || 0} custom payloads
+                            </Badge>
+                          )}
                         </div>
                       </FormItem>
                     )}
@@ -550,6 +714,11 @@ const ScanConfigurationForm: React.FC<ScanConfigurationFormProps> = ({
                           <FormDescription>
                             Check for missing security headers and misconfigurations
                           </FormDescription>
+                          {customPayloads.has('headers') && (
+                            <Badge variant="outline" className="mt-1">
+                              Using {customPayloads.get('headers')?.length || 0} custom payloads
+                            </Badge>
+                          )}
                         </div>
                       </FormItem>
                     )}
@@ -574,6 +743,11 @@ const ScanConfigurationForm: React.FC<ScanConfigurationFormProps> = ({
                           <FormDescription>
                             Test for insecure file upload handling
                           </FormDescription>
+                          {customPayloads.has('fileupload') && (
+                            <Badge variant="outline" className="mt-1">
+                              Using {customPayloads.get('fileupload')?.length || 0} custom payloads
+                            </Badge>
+                          )}
                         </div>
                       </FormItem>
                     )}
@@ -778,6 +952,62 @@ const ScanConfigurationForm: React.FC<ScanConfigurationFormProps> = ({
                     Generate Payloads
                   </>
                 )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Crawled URLs Dialog */}
+        <Dialog open={showCrawlResultsDialog} onOpenChange={setShowCrawlResultsDialog}>
+          <DialogContent className="sm:max-w-[600px] max-h-[90vh]">
+            <DialogHeader>
+              <DialogTitle>Discovered URLs</DialogTitle>
+              <DialogDescription>
+                {crawledUrls.length} URLs were discovered on {targetUrl}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <FormLabel>URLs ({crawledUrls.length})</FormLabel>
+                  <div className="space-x-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={copyCrawledUrls}
+                    >
+                      Copy All
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={downloadCrawledUrls}
+                    >
+                      Download
+                    </Button>
+                  </div>
+                </div>
+                <ScrollArea className="h-[300px] border rounded-md p-4">
+                  <ul className="text-xs space-y-1">
+                    {crawledUrls.map((url, index) => (
+                      <li key={index} className="truncate hover:text-blue-500">
+                        {url}
+                      </li>
+                    ))}
+                  </ul>
+                </ScrollArea>
+              </div>
+            </div>
+            
+            <DialogFooter>
+              <Button 
+                type="button" 
+                onClick={() => setShowCrawlResultsDialog(false)}
+              >
+                Close
               </Button>
             </DialogFooter>
           </DialogContent>

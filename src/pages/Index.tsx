@@ -33,35 +33,49 @@ const Index = () => {
   });
   const { toast } = useToast();
 
-  const handleScanButtonClick = async () => {
+  const handleScanButtonClick = async (formData: any, customPayloads?: Map<string, string[]>, crawledUrls?: string[]) => {
     setScanning(true);
     setScanCompleted(false);
     
     try {
+      // Use crawled URLs and custom payloads in the toast message if available
+      const customPayloadsMsg = customPayloads ? ` with ${Array.from(customPayloads.keys()).length} custom payload types` : '';
+      const crawledUrlsMsg = crawledUrls && crawledUrls.length > 0 ? ` across ${crawledUrls.length} crawled URLs` : '';
+      
       toast({
         title: "Scan Started",
-        description: `Scanning ${targetUrl} in ${scanOptions.scanMode} mode...`,
+        description: `Scanning ${formData.url} in ${formData.scanMode} mode${customPayloadsMsg}${crawledUrlsMsg}...`,
+      });
+      
+      // Update scan options based on form data
+      setTargetUrl(formData.url);
+      setScanOptions({
+        ...scanOptions,
+        crawlDepth: formData.maxDepth,
+        scanMode: formData.scanMode
       });
       
       // Create a scan config object from the form values
       const scanConfig: ScanConfig = {
-        url: targetUrl,
-        scanMode: scanOptions.scanMode,
-        authRequired: false,
-        xssTests: true,
-        sqlInjectionTests: true,
-        csrfTests: true,
-        headerTests: true,
-        fileUploadTests: true,
-        threadCount: 4,
-        captureScreenshots: true,
-        recordVideos: false,
-        aiAnalysis: true,
-        maxDepth: scanOptions.crawlDepth
+        url: formData.url,
+        scanMode: formData.scanMode as "quick" | "standard" | "thorough",
+        authRequired: formData.authRequired,
+        username: formData.username,
+        password: formData.password,
+        xssTests: formData.xssTests,
+        sqlInjectionTests: formData.sqlInjectionTests,
+        csrfTests: formData.csrfTests,
+        headerTests: formData.headerTests,
+        fileUploadTests: formData.fileUploadTests,
+        threadCount: formData.threadCount,
+        captureScreenshots: formData.captureScreenshots,
+        recordVideos: formData.recordVideos,
+        aiAnalysis: formData.aiAnalysis,
+        maxDepth: formData.maxDepth
       };
       
-      // Start the scan and get the scan ID
-      const scanId = await startScan(scanConfig);
+      // Start the scan and get the scan ID, passing custom payloads if available
+      const scanId = await startScan(scanConfig, customPayloads);
       
       // Simulate scan progress
       setTimeout(async () => {
@@ -70,9 +84,18 @@ const Index = () => {
           setScanResults(results);
           setScanCompleted(true);
           
+          // Add info about customPayloads and crawledUrls to the success message
+          const vulnerabilitiesMsg = results.summary.total === 1 
+            ? "1 vulnerability" 
+            : `${results.summary.total} vulnerabilities`;
+          
+          const urlsScannedMsg = crawledUrls && crawledUrls.length > 0 
+            ? ` across ${crawledUrls.length} URLs` 
+            : '';
+          
           toast({
             title: "Scan Completed",
-            description: `Found ${results.summary.total} vulnerabilities.`,
+            description: `Found ${vulnerabilitiesMsg}${urlsScannedMsg}.`,
           });
         } catch (error) {
           console.error(error);
