@@ -1,4 +1,3 @@
-
 import { ScanConfig, ScanResults, Vulnerability } from '../scanEngine';
 import { ScanData, ScanStatus, ScanStatusResponse } from './types';
 import { ScannerUtils } from './utils';
@@ -580,7 +579,11 @@ export class RealScanner {
     };
   }
 
-  private async discoverPages(baseUrl: string, maxDepth: number): Promise<string[]> {
+  /**
+   * Discover pages from a target website
+   * Changed from private to public to allow access from serverApi.ts
+   */
+  public async discoverPages(baseUrl: string, maxDepth: number): Promise<string[]> {
     // In a real scanner, this would crawl the site and discover pages
     // For simulation, generate realistic URLs based on the site
     try {
