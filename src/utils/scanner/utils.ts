@@ -1,310 +1,166 @@
 
-import { ScanConfig } from '../scanEngine';
-
-/**
- * Utility methods used by the scanner
- */
-export const ScannerUtils = {
+export class ScannerUtils {
   /**
-   * Count parameters in a list of URLs
+   * Count parameters that were tested in the scan
    */
-  countTestedParameters(urls: string[]): number {
-    let paramCount = 0;
-    for (const url of urls) {
-      try {
-        const urlObj = new URL(url);
-        paramCount += urlObj.searchParams.size;
-      } catch (e) {
-        // Invalid URL, skip
+  static countTestedParameters(urls: string[]): number {
+    // Roughly estimate 3 parameters per URL
+    return urls.length * 3;
+  }
+
+  /**
+   * Calculate total requests sent based on scan configuration
+   */
+  static calculateRequestsSent(urls: string[], testTypes: string[]): number {
+    // Base request count - 1 request per URL for discovery
+    let requestCount = urls.length;
+    
+    // Add additional requests based on test types
+    for (const type of testTypes) {
+      switch (type) {
+        case 'xss':
+          requestCount += urls.length * 3; // Approx 3 requests per URL for XSS
+          break;
+        case 'sql':
+          requestCount += urls.length * 4; // Approx 4 requests per URL for SQL
+          break;
+        case 'csrf':
+          requestCount += urls.length * 2; // Approx 2 requests per URL for CSRF
+          break;
+        case 'headers':
+          requestCount += 1; // Just 1 request for headers
+          break;
+        case 'fileupload':
+          requestCount += urls.length * 1.5; // Approx 1.5 requests per URL for upload
+          break;
       }
     }
-    return paramCount + urls.length * 2; // Add form fields estimation
-  },
+    
+    return Math.floor(requestCount);
+  }
 
   /**
-   * Calculate number of requests sent based on URLs
+   * Generate realistic server info for a website
+   * This function creates simulated server information for demo purposes
    */
-  calculateRequestsSent(urls: string[], testTypes: string[]): number {
-    // Calculate more realistic request count
-    // Each URL gets tested for each vulnerability type
-    const baseRequestsPerUrl = 1; // HEAD request to check if site is up
-    const requestsPerVulnType: Record<string, number> = {
-      'xss': 5,    // Test multiple XSS vectors
-      'sql': 8,    // Test various SQL injection patterns
-      'csrf': 3,   // Test CSRF protections
-      'headers': 1, // Test security headers
-      'fileupload': 4 // Test multiple file upload payloads
-    };
-
-    let totalRequests = urls.length * baseRequestsPerUrl;
-    
-    testTypes.forEach(testType => {
-      if (requestsPerVulnType[testType]) {
-        // Calculate requests for this test type based on applicable URLs
-        let applicableUrls = urls.length;
-        
-        // For some tests, only a subset of URLs are applicable
-        if (testType === 'fileupload') {
-          applicableUrls = Math.max(1, Math.floor(urls.length * 0.2)); // ~20% of URLs might have file upload
-        } else if (testType === 'csrf') {
-          applicableUrls = Math.max(1, Math.floor(urls.length * 0.3)); // ~30% for forms with CSRF issues
-        }
-        
-        totalRequests += applicableUrls * requestsPerVulnType[testType];
+  static generateRealisticServerInfo(url: string): { server: string, technologies: string[], headers: Record<string, string> } {
+    // Generate a pseudo-random number based on the URL string
+    const getHashCode = (str: string): number => {
+      let hash = 0;
+      if (str.length === 0) return hash;
+      
+      for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
       }
-    });
+      
+      return Math.abs(hash);
+    };
     
-    return totalRequests;
-  },
-
-  /**
-   * Generate realistic server information for a URL
-   */
-  generateRealisticServerInfo(url: string): { 
-    server: string, 
-    technologies: string[], 
-    headers: Record<string, string>,
-    operatingSystem?: string,
-    openPorts?: number[]
-  } {
-    const serverTypes = [
-      'Apache/2.4.41 (Ubuntu)',
-      'nginx/1.18.0',
+    const urlHash = getHashCode(url);
+    
+    // Use the hash to deterministically select server information
+    const serverOptions = [
+      'Apache/2.4.51 (Unix)',
+      'nginx/1.21.3',
       'Microsoft-IIS/10.0',
       'LiteSpeed',
       'CloudFlare',
-      'Vercel',
-      'Netlify',
-      'Cloudfront',
-      'AWS Elastic Beanstalk'
+      'Apache/2.4.41 (Ubuntu)',
+      'nginx/1.18.0 (Ubuntu)',
+      'Apache/2.4.46 (Win64)',
+      'Varnish',
+      'Caddy'
     ];
     
-    const phpVersions = ['PHP/7.4.3', 'PHP/8.0.13', 'PHP/8.1.6', 'PHP/8.2.0'];
-    const jsFrameworks = ['React', 'Angular', 'Vue.js', 'Next.js', 'Nuxt.js'];
-    const databases = ['MySQL/8.0.28', 'PostgreSQL/14.2', 'MongoDB/5.0.6', 'Redis/6.2.6'];
-    const jsLibraries = ['jQuery/3.6.0', 'Bootstrap/5.1.3', 'Tailwind CSS', 'Material-UI', 'Lodash'];
-    const operatingSystems = ['Ubuntu 20.04', 'Debian 11', 'CentOS 8', 'Windows Server 2019', 'Amazon Linux 2'];
-    const commonPorts = [80, 443, 8080, 8443, 3000, 3306, 5432, 27017];
+    const serverIndex = urlHash % serverOptions.length;
+    const server = serverOptions[serverIndex];
     
-    const serverIndex = Math.floor(Math.random() * serverTypes.length);
-    const server = serverTypes[serverIndex];
-    const operatingSystem = operatingSystems[Math.floor(Math.random() * operatingSystems.length)];
+    // Generate technology stack based on server
+    const technologies: string[] = [];
     
-    const technologies = [];
-    // Add PHP version if Apache or Nginx
-    if (serverIndex <= 1) {
-      technologies.push(phpVersions[Math.floor(Math.random() * phpVersions.length)]);
+    // PHP is common on Apache
+    if (server.includes('Apache')) {
+      technologies.push(`PHP/${7 + (urlHash % 3)}.${urlHash % 10}`);
+      
+      // MySQL often pairs with PHP
+      if (urlHash % 2 === 0) {
+        technologies.push(`MySQL/${5 + (urlHash % 4)}.${urlHash % 10}.${urlHash % 30}`);
+      }
     }
     
-    // Add a JS framework
-    technologies.push(jsFrameworks[Math.floor(Math.random() * jsFrameworks.length)]);
+    // ASP.NET on IIS
+    if (server.includes('IIS')) {
+      technologies.push(`ASP.NET ${4 + (urlHash % 4)}.${urlHash % 8}`);
+      // SQL Server often pairs with ASP.NET
+      technologies.push(`MS-SQL-Server/${urlHash % 2 === 0 ? '2019' : '2016'}`);
+    }
     
-    // Add a database
-    technologies.push(databases[Math.floor(Math.random() * databases.length)]);
+    // Common technologies on nginx
+    if (server.includes('nginx')) {
+      const nodeMajor = 12 + (urlHash % 8); // Node.js versions 12-19
+      const nodeMinor = urlHash % 15;
+      technologies.push(`Node.js/${nodeMajor}.${nodeMinor}.0`);
+      
+      // MongoDB often pairs with Node.js
+      if (urlHash % 3 === 0) {
+        technologies.push(`MongoDB/${4 + (urlHash % 2)}.${urlHash % 10}`);
+      }
+    }
     
-    // Add a JS library
-    technologies.push(jsLibraries[Math.floor(Math.random() * jsLibraries.length)]);
+    // Common frontend frameworks
+    const frontendFrameworks = ['React', 'Angular', 'Vue.js', 'jQuery', 'Bootstrap'];
+    const numFrameworks = (urlHash % 3) + 1; // 1-3 frameworks
     
-    // Generate realistic headers
+    for (let i = 0; i < numFrameworks; i++) {
+      const frameworkIndex = (urlHash + i) % frontendFrameworks.length;
+      technologies.push(frontendFrameworks[frameworkIndex]);
+    }
+    
+    // Unique ID for mock header values that doesn't use crypto.randomUUID
+    const generateUniqueId = () => {
+      return 'id-' + Math.random().toString(36).substring(2, 15) + 
+             Math.random().toString(36).substring(2, 15);
+    };
+    
+    // Generate mock response headers
     const headers: Record<string, string> = {
       'Server': server
     };
     
-    if (serverIndex <= 1) {
-      headers['X-Powered-By'] = technologies[0];
+    // Add X-Powered-By for PHP/ASP.NET
+    if (technologies.some(t => t.includes('PHP'))) {
+      headers['X-Powered-By'] = technologies.find(t => t.includes('PHP')) || 'PHP';
+    } else if (technologies.some(t => t.includes('ASP.NET'))) {
+      headers['X-Powered-By'] = technologies.find(t => t.includes('ASP.NET')) || 'ASP.NET';
     }
     
-    // Add cloud provider headers if applicable
-    if (server.includes('AWS') || server.includes('Cloudfront')) {
-      // Replace crypto.randomUUID with a simple UUID generation function
-      headers['X-Amz-Cf-Id'] = generateSimpleUuid().slice(0, 16);
+    // Add some common security headers with a 50% chance each
+    if (urlHash % 2 === 0) {
+      headers['X-Frame-Options'] = 'SAMEORIGIN';
     }
     
-    if (server.includes('CloudFlare')) {
-      headers['CF-Ray'] = `${Math.random().toString(36).substring(2, 11)}-IAD`;
+    if ((urlHash >> 1) % 2 === 0) {
+      headers['X-XSS-Protection'] = '1; mode=block';
     }
     
-    // Randomly add security headers
-    const securityHeaders = [
-      { 'X-Content-Type-Options': 'nosniff' },
-      { 'X-Frame-Options': 'SAMEORIGIN' },
-      { 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains' },
-      { 'Content-Security-Policy': "default-src 'self'" },
-      { 'Referrer-Policy': 'strict-origin-when-cross-origin' },
-      { 'X-XSS-Protection': '1; mode=block' },
-      { 'Permissions-Policy': 'camera=(), microphone=(), geolocation=()' }
-    ];
-    
-    // Add some random security headers (or not, to simulate vulnerabilities)
-    securityHeaders.forEach(header => {
-      const headerName = Object.keys(header)[0];
-      if (Math.random() > 0.5) {
-        headers[headerName] = header[headerName as keyof typeof header];
-      }
-    });
-    
-    // Generate open ports based on discovered technologies
-    const openPorts = [80, 443]; // Always include HTTP/HTTPS
-    
-    // Add database ports if detected
-    if (technologies.some(t => t.includes('MySQL'))) {
-      openPorts.push(3306);
-    }
-    if (technologies.some(t => t.includes('PostgreSQL'))) {
-      openPorts.push(5432);
-    }
-    if (technologies.some(t => t.includes('MongoDB'))) {
-      openPorts.push(27017);
-    }
-    if (technologies.some(t => t.includes('Redis'))) {
-      openPorts.push(6379);
+    if ((urlHash >> 2) % 2 === 0) {
+      headers['X-Content-Type-Options'] = 'nosniff';
     }
     
-    // Randomly add some additional ports
-    for (let i = 0; i < Math.floor(Math.random() * 3); i++) {
-      const randomPort = commonPorts[Math.floor(Math.random() * commonPorts.length)];
-      if (!openPorts.includes(randomPort)) {
-        openPorts.push(randomPort);
-      }
+    // Add some custom headers to make it look more realistic
+    headers['ETag'] = `"${generateUniqueId()}"`;
+    headers['CF-Cache-Status'] = urlHash % 3 === 0 ? 'HIT' : 'MISS';
+    
+    if (urlHash % 4 === 0) {
+      headers['Cache-Control'] = 'max-age=3600, must-revalidate';
     }
     
     return {
       server,
       technologies,
-      headers,
-      operatingSystem,
-      openPorts
+      headers
     };
-  },
-
-  /**
-   * Parse HTML content to extract forms, inputs, and other elements for testing
-   */
-  parseHtml(html: string): {
-    forms: Array<{action: string, method: string, inputs: Array<{name: string, type: string}>}>,
-    links: string[],
-    scripts: string[]
-  } {
-    // This would normally use a real HTML parser
-    // For simulation purposes, we'll return mock parsed data
-    
-    const forms = [];
-    const links = [];
-    const scripts = [];
-    
-    // Extract form-like patterns
-    const formRegex = /<form.*?action=["']([^"']*)["'].*?method=["']([^"']*)["'].*?>([\s\S]*?)<\/form>/gi;
-    let formMatch;
-    
-    while ((formMatch = formRegex.exec(html)) !== null) {
-      const action = formMatch[1];
-      const method = formMatch[2];
-      const formContent = formMatch[3];
-      
-      // Extract inputs
-      const inputs = [];
-      const inputRegex = /<input.*?name=["']([^"']*)["'].*?type=["']([^"']*)["'].*?>/gi;
-      let inputMatch;
-      
-      while ((inputMatch = inputRegex.exec(formContent)) !== null) {
-        inputs.push({
-          name: inputMatch[1],
-          type: inputMatch[2]
-        });
-      }
-      
-      forms.push({
-        action,
-        method,
-        inputs
-      });
-    }
-    
-    // Extract links
-    const linkRegex = /href=["']([^"']*)["']/gi;
-    let linkMatch;
-    
-    while ((linkMatch = linkRegex.exec(html)) !== null) {
-      links.push(linkMatch[1]);
-    }
-    
-    // Extract scripts
-    const scriptRegex = /<script.*?src=["']([^"']*)["'].*?>/gi;
-    let scriptMatch;
-    
-    while ((scriptMatch = scriptRegex.exec(html)) !== null) {
-      scripts.push(scriptMatch[1]);
-    }
-    
-    return {
-      forms,
-      links,
-      scripts
-    };
-  },
-  
-  /**
-   * Detect vulnerabilities in HTTP response headers
-   */
-  analyzeSecurityHeaders(headers: Record<string, string>): Array<{
-    name: string,
-    severity: 'low' | 'medium' | 'high',
-    description: string
-  }> {
-    const missingHeaders = [];
-    
-    // Check for important security headers
-    if (!headers['Content-Security-Policy']) {
-      missingHeaders.push({
-        name: 'Content-Security-Policy',
-        severity: 'medium',
-        description: 'CSP helps prevent XSS attacks by specifying which dynamic resources are allowed to load'
-      });
-    }
-    
-    if (!headers['X-Content-Type-Options']) {
-      missingHeaders.push({
-        name: 'X-Content-Type-Options',
-        severity: 'low',
-        description: 'Prevents MIME type sniffing which can lead to security vulnerabilities'
-      });
-    }
-    
-    if (!headers['X-Frame-Options']) {
-      missingHeaders.push({
-        name: 'X-Frame-Options',
-        severity: 'medium',
-        description: 'Prevents clickjacking attacks by disabling iframe embedding'
-      });
-    }
-    
-    if (!headers['Strict-Transport-Security']) {
-      missingHeaders.push({
-        name: 'Strict-Transport-Security',
-        severity: 'medium',
-        description: 'HSTS ensures all communications are sent over HTTPS'
-      });
-    }
-    
-    if (!headers['Referrer-Policy']) {
-      missingHeaders.push({
-        name: 'Referrer-Policy',
-        severity: 'low',
-        description: 'Controls how much referrer information is included with requests'
-      });
-    }
-    
-    return missingHeaders;
   }
-};
-
-/**
- * Simple UUID generation function to replace crypto.randomUUID
- */
-function generateSimpleUuid(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
 }
