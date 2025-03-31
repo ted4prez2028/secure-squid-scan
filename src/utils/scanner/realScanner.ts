@@ -397,11 +397,18 @@ export class RealScanner {
     // Process each URL to extract parameters
     for (const url of urls) {
       try {
-        // Fetch the HTML content of the page
+        // Create an AbortController for timeout handling
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        
+        // Fetch the HTML content of the page with proper timeout handling
         const response = await fetch(url, {
           headers: { 'User-Agent': 'SecurityScanner/1.0' },
-          timeout: 10000
+          signal: controller.signal
         });
+        
+        // Clear the timeout
+        clearTimeout(timeoutId);
         
         if (!response.ok) {
           console.warn(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
